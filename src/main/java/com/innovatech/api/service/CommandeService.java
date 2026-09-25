@@ -2,14 +2,14 @@ package com.innovatech.api.service;
 
 import com.innovatech.api.dto.CommandeRequestDTO;
 import com.innovatech.api.dto.CommandeResponseDTO;
-import com.innovatech.api.entity.Client;
-import com.innovatech.api.entity.Commande;
-import com.innovatech.api.entity.StatutCommande;
+import com.innovatech.api.dto.LigneCommandeRequestDTO;
+import com.innovatech.api.entity.*;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.CommandeMapper;
 import com.innovatech.api.repository.ClientRepository;
 import com.innovatech.api.repository.CommandeRepository;
+import com.innovatech.api.repository.ProduitRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +28,7 @@ public class CommandeService {
 
     private final CommandeRepository commandeRepository;
     private final ClientRepository clientRepository;
+    private final ProduitRepository produitRepository;
     private final CommandeMapper commandeMapper;
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
@@ -44,20 +45,20 @@ public class CommandeService {
     // -----------------------------------------
 
     public List<CommandeResponseDTO> findAll() {
-        return commandeRepository.findAllWithClient()
+        return commandeRepository.findAllWithDetails()
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
     }
 
     public CommandeResponseDTO findById(Long id) {
-        Commande commande = commandeRepository.findByIdWithClient(id)
+        Commande commande = commandeRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
         return commandeMapper.toResponseDTO(commande);
     }
 
     public CommandeResponseDTO findByNumero(String numero) {
-        Commande commande = commandeRepository.findByNumeroWithClient(numero)
+        Commande commande = commandeRepository.findByNumeroWithDetails(numero)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Commande avec numéro " + numero + " introuvable"));
         return commandeMapper.toResponseDTO(commande);
@@ -67,14 +68,14 @@ public class CommandeService {
         if (!clientRepository.existsById(clientId)) {
             throw new ResourceNotFoundException("Client", clientId);
         }
-        return commandeRepository.findByClientIdWithClient(clientId)
+        return commandeRepository.findByClientIdWithDetails(clientId)
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
     }
 
     public List<CommandeResponseDTO> findByStatut(StatutCommande statut) {
-        return commandeRepository.findByStatutWithClient(statut)
+        return commandeRepository.findByStatutWithDetails(statut)
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
@@ -97,6 +98,36 @@ public class CommandeService {
         commande.setNumero(genererNumero());
         commande.setStatut(StatutCommande.EN_ATTENTE);
         commande.setDateCommande(LocalDateTime.now());
+
+        // Ajouter les lignes
+        for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
+            Produit produit = produitRepository.findById(ligneDTO.getProduitId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
+
+            if (!produit.isActif()) {
+                throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
+            }
+
+            if (produit.getStock() < ligneDTO.getQuantite()) {
+                throw new BusinessException(String.format(
+                        "Stock insuffisant pour %s : demandé %d, disponible %d",
+                        produit.getNom(), ligneDTO.getQuantite(), produit.getStock()));
+            }
+
+            LigneCommande ligne = LigneCommande.builder()
+                    .produit(produit)
+                    .quantite(ligneDTO.getQuantite())
+                    .prixUnitaire(produit.getPrix())
+                    .build();
+            ligne.calculerSousTotal();
+
+            // Décrémenter le stock
+            produit.setStock(produit.getStock() - ligneDTO.getQuantite());
+            produitRepository.save(produit);
+
+            commande.ajouterLigne(ligne);
+        }
+
         recalculerTotaux(commande);
 
         Commande saved = commandeRepository.save(commande);
@@ -104,18 +135,58 @@ public class CommandeService {
     }
 
     // -----------------------------------------
-    // UPDATE
+    // UPDATE (remplacement des lignes)
     // -----------------------------------------
 
     @Transactional
     public CommandeResponseDTO update(Long id, CommandeRequestDTO dto) {
-        Commande existing = commandeRepository.findByIdWithClient(id)
+        Commande existing = commandeRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+
+        if (existing.getStatut() != StatutCommande.EN_ATTENTE) {
+            throw new BusinessException(
+                    "Seule une commande EN_ATTENTE peut être modifiée");
+        }
 
         Client client = clientRepository.findById(dto.getClientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client", dto.getClientId()));
 
         commandeMapper.updateEntity(existing, dto, client);
+
+        // 1. Restituer l'ancien stock
+        for (LigneCommande ancienneLigne : existing.getLignes()) {
+            Produit p = ancienneLigne.getProduit();
+            p.setStock(p.getStock() + ancienneLigne.getQuantite());
+            produitRepository.save(p);
+        }
+
+        // 2. Vider les lignes (orphanRemoval les supprime)
+        existing.viderLignes();
+
+        // 3. Recréer les nouvelles lignes
+        for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
+            Produit produit = produitRepository.findById(ligneDTO.getProduitId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
+
+            if (produit.getStock() < ligneDTO.getQuantite()) {
+                throw new BusinessException(String.format(
+                        "Stock insuffisant pour %s : demandé %d, disponible %d",
+                        produit.getNom(), ligneDTO.getQuantite(), produit.getStock()));
+            }
+
+            LigneCommande ligne = LigneCommande.builder()
+                    .produit(produit)
+                    .quantite(ligneDTO.getQuantite())
+                    .prixUnitaire(produit.getPrix())
+                    .build();
+            ligne.calculerSousTotal();
+
+            produit.setStock(produit.getStock() - ligneDTO.getQuantite());
+            produitRepository.save(produit);
+
+            existing.ajouterLigne(ligne);
+        }
+
         recalculerTotaux(existing);
 
         Commande updated = commandeRepository.save(existing);
@@ -128,7 +199,7 @@ public class CommandeService {
 
     @Transactional
     public CommandeResponseDTO changerStatut(Long id, StatutCommande nouveauStatut) {
-        Commande commande = commandeRepository.findByIdWithClient(id)
+        Commande commande = commandeRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
 
         StatutCommande actuel = commande.getStatut();
@@ -136,8 +207,7 @@ public class CommandeService {
 
         if (!TRANSITIONS_AUTORISEES.contains(transition)) {
             throw new BusinessException(String.format(
-                    "Transition de statut invalide : %s → %s",
-                    actuel, nouveauStatut));
+                    "Transition de statut invalide : %s → %s", actuel, nouveauStatut));
         }
 
         commande.setStatut(nouveauStatut);
@@ -151,13 +221,20 @@ public class CommandeService {
 
     @Transactional
     public void delete(Long id) {
-        Commande commande = commandeRepository.findById(id)
+        Commande commande = commandeRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
 
         if (commande.getStatut() == StatutCommande.EN_COURS
                 || commande.getStatut() == StatutCommande.LIVREE) {
             throw new BusinessException(
                     "Impossible de supprimer une commande en cours ou livrée. Annulez-la.");
+        }
+
+        // Restituer le stock
+        for (LigneCommande ligne : commande.getLignes()) {
+            Produit p = ligne.getProduit();
+            p.setStock(p.getStock() + ligne.getQuantite());
+            produitRepository.save(p);
         }
 
         commandeRepository.delete(commande);
@@ -173,15 +250,24 @@ public class CommandeService {
         return String.format("CMD-%d-%04d", annee, count + 1);
     }
 
+    /**
+     * Recalcule totalHT et totalTTC à partir des lignes.
+     */
     private void recalculerTotaux(Commande commande) {
-        BigDecimal totalHT = BigDecimal.ZERO;
-        BigDecimal tva = commande.getTvaPercent() != null
+        BigDecimal totalHT = commande.getLignes()
+                .stream()
+                .map(LigneCommande::getSousTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal tvaPercent = commande.getTvaPercent() != null
                 ? commande.getTvaPercent()
                 : new BigDecimal("18.00");
 
-        BigDecimal totalTTC = totalHT
-                .multiply(BigDecimal.ONE.add(tva.divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)))
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal tvaMontant = totalHT
+                .multiply(tvaPercent)
+                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+
+        BigDecimal totalTTC = totalHT.add(tvaMontant).setScale(2, RoundingMode.HALF_UP);
 
         commande.setTotalHT(totalHT);
         commande.setTotalTTC(totalTTC);

@@ -6,6 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;   // ⚠️ AJOUTER
 
 @Getter
 @Setter
@@ -27,4 +28,7 @@ public class CommandeResponseDTO {
     private LocalDate dateLivraisonPrevue;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
+
+    // ⚠️ AJOUTER CETTE LIGNE
+    private List<LigneCommandeResponseDTO> lignes;
 }

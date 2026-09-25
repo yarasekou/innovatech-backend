@@ -3,18 +3,19 @@ package com.innovatech.api.mapper;
 import com.innovatech.api.dto.ClientSummaryDTO;
 import com.innovatech.api.dto.CommandeRequestDTO;
 import com.innovatech.api.dto.CommandeResponseDTO;
+import com.innovatech.api.dto.LigneCommandeResponseDTO;
 import com.innovatech.api.entity.Client;
 import com.innovatech.api.entity.Commande;
+import com.innovatech.api.entity.LigneCommande;
 import org.springframework.stereotype.Component;
+import com.innovatech.api.dto.LigneCommandeResponseDTO;
+import com.innovatech.api.entity.LigneCommande;
+import java.util.List;
+import java.util.List;
 
 @Component
 public class CommandeMapper {
 
-    /**
-     * Convertit un DTO de requête en entité.
-     * <p>
-     * Le client doit être fourni séparément (résolu par le service).
-     */
     public Commande toEntity(CommandeRequestDTO dto, Client client) {
         if (dto == null) return null;
 
@@ -34,6 +35,11 @@ public class CommandeMapper {
         entity.setDateLivraisonPrevue(dto.getDateLivraisonPrevue());
     }
 
+    /**
+     * Convertit une entité Commande en DTO de réponse.
+     * <p>
+     * ⚠️ Inclut désormais la liste des lignes.
+     */
     public CommandeResponseDTO toResponseDTO(Commande entity) {
         if (entity == null) return null;
 
@@ -51,8 +57,13 @@ public class CommandeMapper {
                 .dateLivraisonPrevue(entity.getDateLivraisonPrevue())
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification())
+                .lignes(toLignesDTO(entity.getLignes()))
                 .build();
     }
+
+    // -----------------------------------------
+    // Méthodes privées / utilitaires
+    // -----------------------------------------
 
     private ClientSummaryDTO toClientSummary(Client client) {
         if (client == null) return null;
@@ -63,5 +74,33 @@ public class CommandeMapper {
                 .prenom(client.getPrenom())
                 .email(client.getEmail())
                 .build();
+    }
+
+    /**
+     * Convertit une LigneCommande en DTO de réponse.
+     */
+    private LigneCommandeResponseDTO toLigneDTO(LigneCommande ligne) {
+        if (ligne == null) return null;
+
+        return LigneCommandeResponseDTO.builder()
+                .id(ligne.getId())
+                .produitId(ligne.getProduit() != null ? ligne.getProduit().getId() : null)
+                .produitReference(ligne.getProduit() != null ? ligne.getProduit().getReference() : null)
+                .produitNom(ligne.getProduit() != null ? ligne.getProduit().getNom() : null)
+                .quantite(ligne.getQuantite())
+                .prixUnitaire(ligne.getPrixUnitaire())
+                .sousTotal(ligne.getSousTotal())
+                .build();
+    }
+
+    /**
+     * Convertit une liste de LigneCommande en liste de DTOs.
+     */
+    public List<LigneCommandeResponseDTO> toLignesDTO(List<LigneCommande> lignes) {
+        if (lignes == null || lignes.isEmpty()) return List.of();
+
+        return lignes.stream()
+                .map(this::toLigneDTO)
+                .toList();
     }
 }

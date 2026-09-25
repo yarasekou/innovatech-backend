@@ -31,18 +31,40 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
     // NOUVELLES MÉTHODES avec JOIN FETCH (évite le N+1)
     // ---------------------------------------------------
 
-    @Query("SELECT c FROM Commande c JOIN FETCH c.client WHERE c.id = :id")
-    Optional<Commande> findByIdWithClient(@Param("id") Long id);
 
-    @Query("SELECT c FROM Commande c JOIN FETCH c.client ORDER BY c.dateCommande DESC")
-    List<Commande> findAllWithClient();
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.id = :id")
+    Optional<Commande> findByIdWithDetails(@Param("id") Long id);
 
-    @Query("SELECT c FROM Commande c JOIN FETCH c.client WHERE c.numero = :numero")
-    Optional<Commande> findByNumeroWithClient(@Param("numero") String numero);
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "ORDER BY c.dateCommande DESC")
+    List<Commande> findAllWithDetails();
 
-    @Query("SELECT c FROM Commande c JOIN FETCH c.client WHERE c.client.id = :clientId ORDER BY c.dateCommande DESC")
-    List<Commande> findByClientIdWithClient(@Param("clientId") Long clientId);
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.numero = :numero")
+    Optional<Commande> findByNumeroWithDetails(@Param("numero") String numero);
 
-    @Query("SELECT c FROM Commande c JOIN FETCH c.client WHERE c.statut = :statut")
-    List<Commande> findByStatutWithClient(@Param("statut") StatutCommande statut);
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.client.id = :clientId " +
+            "ORDER BY c.dateCommande DESC")
+    List<Commande> findByClientIdWithDetails(@Param("clientId") Long clientId);
+
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.statut = :statut")
+    List<Commande> findByStatutWithDetails(@Param("statut") StatutCommande statut);
 }

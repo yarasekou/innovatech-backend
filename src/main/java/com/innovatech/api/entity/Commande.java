@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Entité représentant une commande passée par un client.
@@ -31,7 +33,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "client")
+@ToString(exclude = {"client", "lignes"})
 public class Commande {
 
     @Id
@@ -89,4 +91,37 @@ public class Commande {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    @OneToMany(
+            mappedBy = "commande",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @Builder.Default
+    private List<LigneCommande> lignes = new ArrayList<>();
+
+    /**
+     * Ajoute une ligne et lie la relation bidirectionnelle.
+     */
+    public void ajouterLigne(LigneCommande ligne) {
+        lignes.add(ligne);
+        ligne.setCommande(this);
+    }
+
+    /**
+     * Retire une ligne (orphanRemoval supprimera de la BDD).
+     */
+    public void retirerLigne(LigneCommande ligne) {
+        lignes.remove(ligne);
+        ligne.setCommande(null);
+    }
+
+    /**
+     * Vide toutes les lignes.
+     */
+    public void viderLignes() {
+        lignes.forEach(l -> l.setCommande(null));
+        lignes.clear();
+    }
 }

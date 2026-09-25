@@ -1,13 +1,19 @@
 package com.innovatech.api.dto;
 
 import com.innovatech.api.entity.StatutCommande;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * DTO d'entrée pour la création / mise à jour d'une commande.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -30,4 +36,9 @@ public class CommandeRequestDTO {
     private String notes;
 
     private LocalDate dateLivraisonPrevue;
+
+    @NotEmpty(message = "La commande doit contenir au moins une ligne")
+    @Valid
+    @Builder.Default
+    private List<LigneCommandeRequestDTO> lignes = new ArrayList<>();
 }
