@@ -1,0 +1,18 @@
+src/test/resources/api.http
+
+### Login
+POST http://localhost:8080/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+### Admin users
+GET http://localhost:8080/api/admin/users
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX0FETUlOIiwiUk9MRV9VU0VSIl0sInN1YiI6InlhcmFAaW5ub3ZhdGVjaC5jb20iLCJpYXQiOjE3OTA1MDc0NDIsImV4cCI6MTc5MDU5Mzg0Mn0.4GK0m_Xp_kIIqf3_Y20iR-Z0N0KldT5SXeWbpKgjx7OifAiTm0NUtG5dwc-lnNrYkFF2tkUG0yW4xokJArjBPg
+
+### Admin clients
+GET http://localhost:8080/api/clients
+Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX0FETUlOIiwiUk9MRV9VU0VSIl0sInN1YiI6InlhcmFAaW5ub3ZhdGVjaC5jb20iLCJpYXQiOjE3OTA1MDc0NDIsImV4cCI6MTc5MDU5Mzg0Mn0.4GK0m_Xp_kIIqf3_Y20iR-Z0N0KldT5SXeWbpKgjx7OifAiTm0NUtG5dwc-lnNrYkFF2tkUG0yW4xokJArjBPg

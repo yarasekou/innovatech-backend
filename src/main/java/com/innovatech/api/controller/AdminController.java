@@ -2,6 +2,8 @@ package com.innovatech.api.controller;
 
 import com.innovatech.api.dto.UserResponseDTO;
 import com.innovatech.api.service.AdminService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -16,6 +18,7 @@ import java.util.List;
 @RequestMapping("/admin")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ADMIN')")
+@Tag(name = "Administration", description = "Gestion des utilisateurs (ADMIN)")
 public class AdminController {
 
     private final AdminService adminService;
@@ -24,6 +27,7 @@ public class AdminController {
      * GET /api/admin/users — Liste tous les utilisateurs.
      */
     @GetMapping("/users")
+    @Operation(summary = "Liste tous les admins")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(adminService.findAllUsers());
     }

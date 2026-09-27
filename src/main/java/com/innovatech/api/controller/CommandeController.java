@@ -4,6 +4,8 @@ import com.innovatech.api.dto.CommandeRequestDTO;
 import com.innovatech.api.dto.CommandeResponseDTO;
 import com.innovatech.api.entity.StatutCommande;
 import com.innovatech.api.service.CommandeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -16,11 +18,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/commandes")
 @RequiredArgsConstructor
+@Tag(name = "Commandes", description = "Commandes clients et cycle de vie")
 public class CommandeController {
 
     private final CommandeService commandeService;
 
     @GetMapping
+    @Operation(summary = "Liste toutes les commandes")
     public ResponseEntity<List<CommandeResponseDTO>> getAll() {
         return ResponseEntity.ok(commandeService.findAll());
     }
@@ -46,6 +50,7 @@ public class CommandeController {
     }
 
     @PostMapping
+    @Operation(summary = "Créer une nouvelle commande")
     public ResponseEntity<CommandeResponseDTO> create(
             @Valid @RequestBody CommandeRequestDTO dto) {
         CommandeResponseDTO created = commandeService.create(dto);
@@ -67,6 +72,7 @@ public class CommandeController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer une commande (ADMIN uniquement)")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         commandeService.delete(id);

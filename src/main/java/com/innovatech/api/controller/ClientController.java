@@ -3,6 +3,8 @@ package com.innovatech.api.controller;
 import com.innovatech.api.dto.ClientRequestDTO;
 import com.innovatech.api.dto.ClientResponseDTO;
 import com.innovatech.api.service.ClientService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,11 +17,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/clients")
 @RequiredArgsConstructor
+@Tag(name = "Clients", description = "Gestion des clients d'InnovaTech")
 public class ClientController {
 
     private final ClientService clientService;
 
     @GetMapping
+    @Operation(summary = "Liste tous les clients")
     public ResponseEntity<List<ClientResponseDTO>> getAll() {
         return ResponseEntity.ok(clientService.findAll());
     }
@@ -40,6 +44,7 @@ public class ClientController {
     }
 
     @PostMapping
+    @Operation(summary = "Créer un nouveau client")
     public ResponseEntity<ClientResponseDTO> create(
             @Valid @RequestBody ClientRequestDTO dto) {
         ClientResponseDTO created = clientService.create(dto);
@@ -54,6 +59,7 @@ public class ClientController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer un client (ADMIN uniquement)")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         clientService.delete(id);

@@ -3,6 +3,8 @@ package com.innovatech.api.controller;
 import com.innovatech.api.dto.ProduitRequestDTO;
 import com.innovatech.api.dto.ProduitResponseDTO;
 import com.innovatech.api.service.ProduitService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -15,11 +17,13 @@ import java.util.List;
 @RestController
 @RequestMapping("/produits")
 @RequiredArgsConstructor
+@Tag(name = "Produits", description = "Catalogue des produits et services")
 public class ProduitController {
 
     private final ProduitService produitService;
 
     @GetMapping
+    @Operation(summary = "Liste tous les produits")
     public ResponseEntity<List<ProduitResponseDTO>> getAll() {
         return ResponseEntity.ok(produitService.findAll());
     }
@@ -56,6 +60,7 @@ public class ProduitController {
     }
 
     @PostMapping
+    @Operation(summary = "Créer un nouveau produit")
     public ResponseEntity<ProduitResponseDTO> create(
             @Valid @RequestBody ProduitRequestDTO dto) {
         ProduitResponseDTO created = produitService.create(dto);
@@ -70,6 +75,7 @@ public class ProduitController {
     }
 
     @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer un produit (ADMIN uniquement)")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         produitService.delete(id);
