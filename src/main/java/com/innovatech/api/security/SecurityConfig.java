@@ -23,7 +23,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * - Stateless (pas de session)
  * - JWT pour l'authentification
  * - Routes publiques : /auth/**, Swagger, Actuator
- * - Routes protégées : le reste
+ * - Routes /admin/** : ROLE_ADMIN
+ * - Autres : authentifié
  */
 @Configuration
 @EnableWebSecurity
@@ -47,23 +48,26 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 4. Autorisation des requêtes
+                // 4. Autorisation des requêtes — UN SEUL BLOC
                 .authorizeHttpRequests(auth -> auth
                         // Routes publiques
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
 
-                        // Swagger (à venir)
+                        // Swagger
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                        // OPTIONS (preflight CORS)
+                        // Preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Tout le reste nécessite une authentification
+                        // Admin (double sécurité : classe + ici)
+                        .requestMatchers("/admin/**").hasRole("ADMIN")
+
+                        // Reste : authentifié
                         .anyRequest().authenticated()
                 )
 
@@ -88,11 +92,6 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
 
-    /**
-     * BCrypt pour hasher les mots de passe.
-     * <p>
-     * Force 12 (par défaut 10) → plus lent à casser, acceptable.
-     */
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder(12);

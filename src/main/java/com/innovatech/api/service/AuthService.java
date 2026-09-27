@@ -16,9 +16,14 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.innovatech.api.dto.SetupAdminDTO;
+import com.innovatech.api.dto.UserResponseDTO;
+import com.innovatech.api.mapper.UserMapper;
+import java.util.HashSet;
 
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,6 +38,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final CustomUserDetailsService userDetailsService;
+    private final AdminService adminService;
+    private final UserMapper userMapper;
 
     @Value("${jwt.expiration}")
     private long jwtExpiration;
@@ -107,5 +114,30 @@ public class AuthService {
                 .roles(roles)
                 .expiresIn(jwtExpiration / 1000)   // en secondes
                 .build();
+    }
+
+    @Transactional
+    public UserResponseDTO setupFirstAdmin(SetupAdminDTO dto, String email) {
+        // ⚠️ Clé secrète — en prod : variable d'environnement
+        final String SETUP_KEY = "innova-setup-key-2026";
+
+        if (!SETUP_KEY.equals(dto.getSecretKey())) {
+            throw new BusinessException("Clé de setup invalide");
+        }
+
+        if (adminService.adminExists()) {
+            throw new BusinessException("Un administrateur existe déjà. Utilisez l'endpoint admin.");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("Utilisateur introuvable"));
+
+        Set<Role> roles = new HashSet<>(user.getRoles());
+        roles.add(Role.ROLE_ADMIN);
+        user.setRoles(roles);
+        userRepository.save(user);
+
+        log.info("Premier ADMIN créé : {}", email);
+        return userMapper.toResponseDTO(user);
     }
 }
