@@ -7,6 +7,7 @@ import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.ClientMapper;
 import com.innovatech.api.repository.ClientRepository;
+import com.innovatech.api.repository.CommandeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +21,7 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final ClientMapper clientMapper;
+    private final CommandeRepository commandeRepository;
 
     // -----------------------------------------
     // READ
@@ -95,14 +97,19 @@ public class ClientService {
         return clientMapper.toResponseDTO(updated);
     }
 
-    // -----------------------------------------
-    // DELETE
-    // -----------------------------------------
-
     @Transactional
     public void delete(Long id) {
         Client client = clientRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Client", id));
+
+        // Vérifier s'il a des commandes
+        long nbCommandes = commandeRepository.countByClientId(id);
+        if (nbCommandes > 0) {
+            throw new BusinessException(
+                    "Impossible de supprimer ce client : " + nbCommandes
+                            + " commande(s) existent. Désactivez-le à la place.");
+        }
+
         clientRepository.delete(client);
     }
 
