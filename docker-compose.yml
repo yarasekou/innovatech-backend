@@ -1,0 +1,58 @@
+services:
+
+  # =====================================================
+  # MySQL
+  # =====================================================
+  mysql:
+    image: mysql:8.0
+    container_name: innova-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: innovatech
+      MYSQL_USER: innova
+      MYSQL_PASSWORD: innova123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      - innova-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # =====================================================
+  # API Spring Boot
+  # =====================================================
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: innova-api
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/innovatech?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+      JWT_SECRET: InnovaTechDockerSecretKey2026VeryLongForHS256AlgorithmMin32Bytes
+      JWT_EXPIRATION: 86400000
+    ports:
+      - "8080:8080"
+    networks:
+      - innova-network
+
+volumes:
+  mysql-data:
+    driver: local
+
+networks:
+  innova-network:
+    driver: bridge
