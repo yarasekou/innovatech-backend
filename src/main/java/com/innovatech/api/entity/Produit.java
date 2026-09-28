@@ -7,11 +7,9 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 
-/**
- * Entité représentant un produit ou service vendu par InnovaTech.
- */
 @Entity
 @Table(
         name = "produits",
@@ -46,10 +44,18 @@ public class Produit {
     private String description;
 
     /**
-     * Prix HT en euros. On utilise BigDecimal (jamais double).
+     * Prix de VENTE au client (HT).
      */
     @Column(name = "prix", nullable = false, precision = 12, scale = 2)
     private BigDecimal prix;
+
+    /**
+     * Prix d'ACHAT auprès du fournisseur (HT).
+     * Utilisé pour calculer la marge.
+     */
+    @Column(name = "prix_achat", nullable = false, precision = 12, scale = 2)
+    @Builder.Default
+    private BigDecimal prixAchat = BigDecimal.ZERO;
 
     @Column(name = "stock", nullable = false)
     @Builder.Default
@@ -69,4 +75,31 @@ public class Produit {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    // -----------------------------------------
+    // MÉTHODES CALCULÉES
+    // -----------------------------------------
+
+    /**
+     * Marge unitaire = prix de vente - prix d'achat.
+     */
+    public BigDecimal getMargeUnitaire() {
+        if (prix == null || prixAchat == null) {
+            return BigDecimal.ZERO;
+        }
+        return prix.subtract(prixAchat);
+    }
+
+    /**
+     * Taux de marge en pourcentage.
+     * Formule : (marge / prix achat) × 100
+     */
+    public BigDecimal getTauxMarge() {
+        if (prixAchat == null || prixAchat.compareTo(BigDecimal.ZERO) == 0) {
+            return BigDecimal.ZERO;
+        }
+        return getMargeUnitaire()
+                .multiply(new BigDecimal("100"))
+                .divide(prixAchat, 2, RoundingMode.HALF_UP);
+    }
 }

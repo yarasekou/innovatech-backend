@@ -16,9 +16,10 @@ public class ProduitMapper {
                 .nom(dto.getNom())
                 .description(dto.getDescription())
                 .prix(dto.getPrix())
+                .prixAchat(dto.getPrixAchat() != null ? dto.getPrixAchat() : java.math.BigDecimal.ZERO)
                 .stock(dto.getStock())
                 .categorie(dto.getCategorie())
-                .actif(dto.getActif() == null || dto.getActif())
+                .actif(dto.getActif() != null ? dto.getActif() : true)
                 .build();
     }
 
@@ -27,6 +28,7 @@ public class ProduitMapper {
         entity.setNom(dto.getNom());
         entity.setDescription(dto.getDescription());
         entity.setPrix(dto.getPrix());
+        entity.setPrixAchat(dto.getPrixAchat() != null ? dto.getPrixAchat() : entity.getPrixAchat());
         entity.setStock(dto.getStock());
         entity.setCategorie(dto.getCategorie());
         entity.setActif(dto.getActif() != null ? dto.getActif() : entity.isActif());
@@ -41,6 +43,9 @@ public class ProduitMapper {
                 .nom(entity.getNom())
                 .description(entity.getDescription())
                 .prix(entity.getPrix())
+                .prixAchat(entity.getPrixAchat())
+                .margeUnitaire(entity.getMargeUnitaire())
+                .tauxMarge(entity.getTauxMarge())
                 .stock(entity.getStock())
                 .categorie(entity.getCategorie())
                 .actif(entity.isActif())

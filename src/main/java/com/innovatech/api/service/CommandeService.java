@@ -82,7 +82,7 @@ public class CommandeService {
     }
 
     // -----------------------------------------
-    // CREATE
+    // CREATE — ne déduit PAS le stock
     // -----------------------------------------
 
     @Transactional
@@ -99,7 +99,7 @@ public class CommandeService {
         commande.setStatut(StatutCommande.EN_ATTENTE);
         commande.setDateCommande(LocalDateTime.now());
 
-        // Ajouter les lignes
+        // Ajouter les lignes (SANS toucher au stock)
         for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
             Produit produit = produitRepository.findById(ligneDTO.getProduitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
@@ -108,6 +108,7 @@ public class CommandeService {
                 throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
             }
 
+            // Vérification simple (pas de déduction)
             if (produit.getStock() < ligneDTO.getQuantite()) {
                 throw new BusinessException(String.format(
                         "Stock insuffisant pour %s : demandé %d, disponible %d",
@@ -121,9 +122,7 @@ public class CommandeService {
                     .build();
             ligne.calculerSousTotal();
 
-            // Décrémenter le stock
-            produit.setStock(produit.getStock() - ligneDTO.getQuantite());
-            produitRepository.save(produit);
+            // ⚠️ PAS de produit.setStock() ici — le stock sera déduit à la LIVRAISON
 
             commande.ajouterLigne(ligne);
         }
@@ -135,7 +134,7 @@ public class CommandeService {
     }
 
     // -----------------------------------------
-    // UPDATE (remplacement des lignes)
+    // UPDATE — ne touche PAS au stock
     // -----------------------------------------
 
     @Transactional
@@ -153,17 +152,10 @@ public class CommandeService {
 
         commandeMapper.updateEntity(existing, dto, client);
 
-        // 1. Restituer l'ancien stock
-        for (LigneCommande ancienneLigne : existing.getLignes()) {
-            Produit p = ancienneLigne.getProduit();
-            p.setStock(p.getStock() + ancienneLigne.getQuantite());
-            produitRepository.save(p);
-        }
-
-        // 2. Vider les lignes (orphanRemoval les supprime)
+        // Vider les lignes (orphanRemoval les supprime)
         existing.viderLignes();
 
-        // 3. Recréer les nouvelles lignes
+        // Recréer les nouvelles lignes (SANS toucher au stock)
         for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
             Produit produit = produitRepository.findById(ligneDTO.getProduitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
@@ -181,9 +173,6 @@ public class CommandeService {
                     .build();
             ligne.calculerSousTotal();
 
-            produit.setStock(produit.getStock() - ligneDTO.getQuantite());
-            produitRepository.save(produit);
-
             existing.ajouterLigne(ligne);
         }
 
@@ -194,7 +183,7 @@ public class CommandeService {
     }
 
     // -----------------------------------------
-    // CHANGEMENT DE STATUT
+    // CHANGEMENT DE STATUT — c'est ICI que le stock bouge
     // -----------------------------------------
 
     @Transactional
@@ -210,13 +199,23 @@ public class CommandeService {
                     "Transition de statut invalide : %s → %s", actuel, nouveauStatut));
         }
 
+        // ✅ Avant de VALIDER : vérifier que le stock est disponible
+        if (nouveauStatut == StatutCommande.VALIDEE) {
+            verifierStockDisponible(commande);
+        }
+
+        // ✅ À la LIVRAISON : déduire le stock
+        if (nouveauStatut == StatutCommande.LIVREE) {
+            deduireStock(commande);
+        }
+
         commande.setStatut(nouveauStatut);
         Commande updated = commandeRepository.save(commande);
         return commandeMapper.toResponseDTO(updated);
     }
 
     // -----------------------------------------
-    // DELETE
+    // DELETE — ne restitue PAS le stock (jamais déduit)
     // -----------------------------------------
 
     @Transactional
@@ -230,12 +229,7 @@ public class CommandeService {
                     "Impossible de supprimer une commande en cours ou livrée. Annulez-la.");
         }
 
-        // Restituer le stock
-        for (LigneCommande ligne : commande.getLignes()) {
-            Produit p = ligne.getProduit();
-            p.setStock(p.getStock() + ligne.getQuantite());
-            produitRepository.save(p);
-        }
+        // ⚠️ Pas de restitution de stock ici (jamais déduit)
 
         commandeRepository.delete(commande);
     }
@@ -250,9 +244,6 @@ public class CommandeService {
         return String.format("CMD-%d-%04d", annee, count + 1);
     }
 
-    /**
-     * Recalcule totalHT et totalTTC à partir des lignes.
-     */
     private void recalculerTotaux(Commande commande) {
         BigDecimal totalHT = commande.getLignes()
                 .stream()
@@ -271,5 +262,39 @@ public class CommandeService {
 
         commande.setTotalHT(totalHT);
         commande.setTotalTTC(totalTTC);
+    }
+
+    /**
+     * Vérifie que le stock est disponible pour toutes les lignes.
+     * Ne modifie PAS le stock.
+     */
+    private void verifierStockDisponible(Commande commande) {
+        for (LigneCommande ligne : commande.getLignes()) {
+            Produit produit = ligne.getProduit();
+            if (produit.getStock() < ligne.getQuantite()) {
+                throw new BusinessException(String.format(
+                        "Stock insuffisant pour %s : demandé %d, disponible %d",
+                        produit.getNom(), ligne.getQuantite(), produit.getStock()));
+            }
+        }
+    }
+
+    /**
+     * Déduit le stock pour chaque ligne de la commande.
+     * Appelé uniquement lors du passage en LIVREE.
+     */
+    private void deduireStock(Commande commande) {
+        for (LigneCommande ligne : commande.getLignes()) {
+            Produit produit = ligne.getProduit();
+
+            if (produit.getStock() < ligne.getQuantite()) {
+                throw new BusinessException(String.format(
+                        "Stock insuffisant pour %s : demandé %d, disponible %d",
+                        produit.getNom(), ligne.getQuantite(), produit.getStock()));
+            }
+
+            produit.setStock(produit.getStock() - ligne.getQuantite());
+            produitRepository.save(produit);
+        }
     }
 }

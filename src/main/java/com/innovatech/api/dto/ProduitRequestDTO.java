@@ -23,10 +23,17 @@ public class ProduitRequestDTO {
     @Size(max = 1000, message = "La description ne doit pas dépasser 1000 caractères")
     private String description;
 
-    @NotNull(message = "Le prix est obligatoire")
-    @DecimalMin(value = "0.00", message = "Le prix doit être positif ou nul")
-    @Digits(integer = 10, fraction = 2, message = "Le prix doit avoir au maximum 10 chiffres entiers et 2 décimales")
+    // Prix de VENTE
+    @NotNull(message = "Le prix de vente est obligatoire")
+    @DecimalMin(value = "0.00", message = "Le prix de vente doit être positif ou nul")
+    @Digits(integer = 10, fraction = 2, message = "Le prix de vente doit avoir au maximum 10 chiffres entiers et 2 décimales")
     private BigDecimal prix;
+
+    // Prix d'ACHAT
+    @NotNull(message = "Le prix d'achat est obligatoire")
+    @DecimalMin(value = "0.00", message = "Le prix d'achat doit être positif ou nul")
+    @Digits(integer = 10, fraction = 2, message = "Le prix d'achat doit avoir au maximum 10 chiffres entiers et 2 décimales")
+    private BigDecimal prixAchat;
 
     @NotNull(message = "Le stock est obligatoire")
     @Min(value = 0, message = "Le stock ne peut pas être négatif")

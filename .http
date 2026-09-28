@@ -1,7 +1,29 @@
 src/test/resources/api.http
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+@token = eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX1VTRVIiXSwic3ViIjoieWFyYUBpbm5vdmF0ZWNoLmNvbSIsImlhdCI6MTc5MDYwMDk0MiwiZXhwIjoxNzkwNjg3MzQyfQ.cwjL3kp8aUenW9_nF7BV8OPxd5-YvaXj3rkD1vxYYmCFybgjuioLTlewT5LPmIRQPmEeDjGuM-BfUpEw4tKGnw
+
+
+### =========================================================
+### 1. AUTHENTIFICATION
+### =========================================================
+
+### Register
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "yara",
+  "email": "yara@innovatech.com",
+  "password": "password123",
+  "prenom": "Yara",
+  "nom": "Sékou"
+}
 
 ### Login
-POST http://localhost:8080/api/auth/login
+POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
@@ -9,10 +31,303 @@ Content-Type: application/json
   "password": "password123"
 }
 
-### Admin users
-GET http://localhost:8080/api/admin/users
-Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX0FETUlOIiwiUk9MRV9VU0VSIl0sInN1YiI6InlhcmFAaW5ub3ZhdGVjaC5jb20iLCJpYXQiOjE3OTA1MDc0NDIsImV4cCI6MTc5MDU5Mzg0Mn0.4GK0m_Xp_kIIqf3_Y20iR-Z0N0KldT5SXeWbpKgjx7OifAiTm0NUtG5dwc-lnNrYkFF2tkUG0yW4xokJArjBPg
+### Setup Admin (une seule fois)
+POST {{baseUrl}}/auth/setup-admin
+Content-Type: application/json
+Authorization: Bearer {{token}}
 
-### Admin clients
-GET http://localhost:8080/api/clients
-Authorization: Bearer eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX0FETUlOIiwiUk9MRV9VU0VSIl0sInN1YiI6InlhcmFAaW5ub3ZhdGVjaC5jb20iLCJpYXQiOjE3OTA1MDc0NDIsImV4cCI6MTc5MDU5Mzg0Mn0.4GK0m_Xp_kIIqf3_Y20iR-Z0N0KldT5SXeWbpKgjx7OifAiTm0NUtG5dwc-lnNrYkFF2tkUG0yW4xokJArjBPg
+{
+  "secretKey": "innova-setup-key-2026"
+}
+
+
+### =========================================================
+### 2. CLIENTS
+### =========================================================
+
+### Liste tous les clients
+GET {{baseUrl}}/clients
+Authorization: Bearer {{token}}
+
+### Clients actifs
+GET {{baseUrl}}/clients/actifs
+Authorization: Bearer {{token}}
+
+### Client par ID
+GET {{baseUrl}}/clients/1
+Authorization: Bearer {{token}}
+
+### Rechercher clients (nom ou prénom)
+GET {{baseUrl}}/clients/search?q=Diop
+Authorization: Bearer {{token}}
+
+### Créer un client
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nom": "Diop",
+  "prenom": "Aminata",
+  "email": "aminata.diop@example.com",
+  "telephone": "771234567",
+  "adresse": "Sacré-Cœur 3",
+  "ville": "Dakar",
+  "pays": "Sénégal"
+}
+
+### Modifier un client
+PUT {{baseUrl}}/clients/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nom": "Diop",
+  "prenom": "Aminata",
+  "email": "aminata.diop@example.com",
+  "telephone": "771234567",
+  "adresse": "Nouvelle adresse",
+  "ville": "Thiès",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+### Désactiver un client (soft delete)
+PATCH {{baseUrl}}/clients/1/deactivate
+Authorization: Bearer {{token}}
+
+### Supprimer un client (ADMIN)
+DELETE {{baseUrl}}/clients/1
+Authorization: Bearer {{token}}
+
+
+### =========================================================
+### 3. PRODUITS
+### =========================================================
+
+### Liste tous les produits
+GET {{baseUrl}}/produits
+Authorization: Bearer {{token}}
+
+### Produits actifs
+GET {{baseUrl}}/produits/actifs
+Authorization: Bearer {{token}}
+
+### Produit par ID
+GET {{baseUrl}}/produits/1
+Authorization: Bearer {{token}}
+
+### Produit par référence
+GET {{baseUrl}}/produits/reference/PROD-001
+Authorization: Bearer {{token}}
+
+### Produits par catégorie
+GET {{baseUrl}}/produits/categorie/Développement
+Authorization: Bearer {{token}}
+
+### Rechercher produits
+GET {{baseUrl}}/produits/search?q=site
+Authorization: Bearer {{token}}
+
+### Produits en stock faible
+GET {{baseUrl}}/produits/stock-faible?seuil=10
+Authorization: Bearer {{token}}
+
+### Créer un produit
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "PROD-008",
+  "nom": "iPhone 16 Pro",
+  "description": "Smartphone Apple",
+  "prix": 3500000.00,
+  "prixAchat": 300000.00,
+  "stock": 10,
+  "categorie": "Iphone"
+}
+
+### Modifier un produit
+PUT {{baseUrl}}/produits/2
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "PROD-008",
+  "nom": "iPhone 16 Pro",
+  "description": "Smartphone Apple",
+  "prix": 3500000.00,
+  "prixAchat": 3000000.00,
+  "stock": 10,
+  "categorie": "Iphone"
+}
+
+### Désactiver un produit
+PATCH {{baseUrl}}/produits/1/deactivate
+Authorization: Bearer {{token}}
+
+### Supprimer un produit (ADMIN)
+DELETE {{baseUrl}}/produits/1
+Authorization: Bearer {{token}}
+
+
+### =========================================================
+### 4. COMMANDES
+### =========================================================
+
+### Liste toutes les commandes
+GET {{baseUrl}}/commandes
+Authorization: Bearer {{token}}
+
+### Commande par ID
+GET {{baseUrl}}/commandes/1
+Authorization: Bearer {{token}}
+
+### Commande par numéro
+GET {{baseUrl}}/commandes/numero/CMD-2026-0001
+Authorization: Bearer {{token}}
+
+### Commandes d'un client
+GET {{baseUrl}}/commandes/client/1
+Authorization: Bearer {{token}}
+
+### Commandes par statut
+GET {{baseUrl}}/commandes/statut/EN_ATTENTE
+Authorization: Bearer {{token}}
+
+### Créer une commande
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "clientId": 1,
+  "tvaPercent": 0,
+  "notes": "Commande urgente",
+  "dateLivraisonPrevue": "2026-10-15",
+  "lignes": [
+    { "produitId": 2, "quantite": 10 }
+  ]
+}
+
+### Modifier une commande (EN_ATTENTE uniquement)
+PUT {{baseUrl}}/commandes/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "clientId": 1,
+  "tvaPercent": 18.00,
+  "notes": "Commande modifiée",
+  "lignes": [
+    { "produitId": 2, "quantite": 3 }
+  ]
+}
+
+### Changer le statut — EN_ATTENTE → VALIDEE
+PATCH {{baseUrl}}/commandes/1/statut/VALIDEE
+Authorization: Bearer {{token}}
+
+### Changer le statut — VALIDEE → EN_COURS
+PATCH {{baseUrl}}/commandes/1/statut/EN_COURS
+Authorization: Bearer {{token}}
+
+### Changer le statut — EN_COURS → LIVREE
+PATCH {{baseUrl}}/commandes/1/statut/LIVREE
+Authorization: Bearer {{token}}
+
+### Annuler — depuis EN_ATTENTE ou VALIDEE ou EN_COURS
+PATCH {{baseUrl}}/commandes/1/statut/ANNULEE
+Authorization: Bearer {{token}}
+
+### Supprimer une commande (ADMIN)
+DELETE {{baseUrl}}/commandes/1
+Authorization: Bearer {{token}}
+
+
+### =========================================================
+### 5. PAIEMENTS
+### =========================================================
+
+### Liste tous les paiements
+GET {{baseUrl}}/paiements
+Authorization: Bearer {{token}}
+
+### Paiement par ID
+GET {{baseUrl}}/paiements/1
+Authorization: Bearer {{token}}
+
+### Paiements d'une commande
+GET {{baseUrl}}/paiements/commande/1
+Authorization: Bearer {{token}}
+
+### Reste à payer d'une commande
+GET {{baseUrl}}/paiements/commande/1/reste
+Authorization: Bearer {{token}}
+
+### Paiements par statut
+GET {{baseUrl}}/paiements/statut/VALIDE
+Authorization: Bearer {{token}}
+
+### Enregistrer un paiement (WAVE)
+POST {{baseUrl}}/paiements
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "commandeId": 1,
+  "montant": 2000.00,
+  "methode": "WAVE",
+  "reference": "TX-WAVE-001",
+  "notes": "Paiement mobile"
+}
+
+### Enregistrer un paiement (ORANGE_MONEY)
+POST {{baseUrl}}/paiements
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "commandeId": 1,
+  "montant": 3900.00,
+  "methode": "ORANGE_MONEY",
+  "reference": "TX-OM-001"
+}
+
+### Changer statut — REMBOURSE
+PATCH {{baseUrl}}/paiements/1/statut/REMBOURSE
+Authorization: Bearer {{token}}
+
+### Changer statut — ANNULE
+PATCH {{baseUrl}}/paiements/1/statut/ANNULE
+Authorization: Bearer {{token}}
+
+### Supprimer un paiement (ADMIN)
+DELETE {{baseUrl}}/paiements/1
+Authorization: Bearer {{token}}
+
+
+### =========================================================
+### 6. ADMIN
+### =========================================================
+
+### Liste tous les utilisateurs
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{token}}
+
+### Utilisateur par ID
+GET {{baseUrl}}/admin/users/1
+Authorization: Bearer {{token}}
+
+### Promouvoir un user en ADMIN
+PATCH {{baseUrl}}/admin/users/2/promote
+Authorization: Bearer {{token}}
+
+### Rétrograder un ADMIN
+PATCH {{baseUrl}}/admin/users/2/demote
+Authorization: Bearer {{token}}
+
+### Activer/Désactiver un user
+PATCH {{baseUrl}}/admin/users/2/toggle-actif
+Authorization: Bearer {{token}}

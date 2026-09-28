@@ -16,7 +16,15 @@ public class ProduitResponseDTO {
     private String reference;
     private String nom;
     private String description;
-    private BigDecimal prix;
+
+    // Prix
+    private BigDecimal prix;           // Prix de vente
+    private BigDecimal prixAchat;      // Prix d'achat
+
+    // Marge (calculée)
+    private BigDecimal margeUnitaire;
+    private BigDecimal tauxMarge;
+
     private Integer stock;
     private String categorie;
     private boolean actif;
