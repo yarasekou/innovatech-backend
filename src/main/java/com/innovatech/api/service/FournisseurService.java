@@ -6,6 +6,7 @@ import com.innovatech.api.entity.Fournisseur;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.FournisseurMapper;
+import com.innovatech.api.repository.CommandeAchatRepository;
 import com.innovatech.api.repository.FournisseurRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,8 @@ public class FournisseurService {
 
     private final FournisseurRepository fournisseurRepository;
     private final FournisseurMapper fournisseurMapper;
+    private final CommandeAchatRepository commandeAchatRepository;
+
 
     // -----------------------------------------
     // READ
@@ -121,7 +124,13 @@ public class FournisseurService {
         Fournisseur fournisseur = fournisseurRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Fournisseur", id));
 
-        // TODO plus tard : vérifier s'il a des commandes d'achat
+        long nbCommandes = commandeAchatRepository.countByFournisseurId(id);
+        if (nbCommandes > 0) {
+            throw new BusinessException(
+                    "Impossible de supprimer ce fournisseur : " + nbCommandes
+                            + " commande(s) d'achat existent. Désactivez-le à la place.");
+        }
+
         fournisseurRepository.delete(fournisseur);
     }
 

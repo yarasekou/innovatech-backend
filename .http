@@ -1,16 +1,16 @@
-src/test/resources/api.http
 ### =========================================================
 ### VARIABLES
 ### =========================================================
 @baseUrl = http://localhost:8080/api
-@token = eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX1VTRVIiXSwic3ViIjoieWFyYUBpbm5vdmF0ZWNoLmNvbSIsImlhdCI6MTc5MDYwMDk0MiwiZXhwIjoxNzkwNjg3MzQyfQ.cwjL3kp8aUenW9_nF7BV8OPxd5-YvaXj3rkD1vxYYmCFybgjuioLTlewT5LPmIRQPmEeDjGuM-BfUpEw4tKGnw
+
+@token = eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX1VTRVIiXSwic3ViIjoieWFyYUBpbm5vdmF0ZWNoLmNvbSIsImlhdCI6MTc5MDYwNTY3OCwiZXhwIjoxNzkwNjkyMDc4fQ.IZVVypFKZdQRR8oDkJfwIyaQkTiE2Be8Qk5PZyutOAcjN3YnAQxljVq5dk3uEwb2SI8ja7lzgO36N5vXgcONsw
 
 
 ### =========================================================
 ### 1. AUTHENTIFICATION
 ### =========================================================
 
-### Register
+### 1.1 — Register
 POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
@@ -22,7 +22,7 @@ Content-Type: application/json
   "nom": "Sékou"
 }
 
-### Login
+### 1.2 — Login (capture auto du token)
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -31,7 +31,8 @@ Content-Type: application/json
   "password": "password123"
 }
 
-### Setup Admin (une seule fois)
+
+### 1.3 — Setup Admin (une seule fois)
 POST {{baseUrl}}/auth/setup-admin
 Content-Type: application/json
 Authorization: Bearer {{token}}
@@ -40,28 +41,42 @@ Authorization: Bearer {{token}}
   "secretKey": "innova-setup-key-2026"
 }
 
+### 1.4 — Re-login (nouveau token ADMIN)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+    client.log("Nouveau token ADMIN capturé");
+%}
+
 
 ### =========================================================
 ### 2. CLIENTS
 ### =========================================================
 
-### Liste tous les clients
+### 2.1 — Liste tous les clients
 GET {{baseUrl}}/clients
 Authorization: Bearer {{token}}
 
-### Clients actifs
+### 2.2 — Clients actifs
 GET {{baseUrl}}/clients/actifs
 Authorization: Bearer {{token}}
 
-### Client par ID
+### 2.3 — Client par ID
 GET {{baseUrl}}/clients/1
 Authorization: Bearer {{token}}
 
-### Rechercher clients (nom ou prénom)
+### 2.4 — Rechercher clients
 GET {{baseUrl}}/clients/search?q=Diop
 Authorization: Bearer {{token}}
 
-### Créer un client
+### 2.5 — Créer un client
 POST {{baseUrl}}/clients
 Content-Type: application/json
 Authorization: Bearer {{token}}
@@ -76,7 +91,7 @@ Authorization: Bearer {{token}}
   "pays": "Sénégal"
 }
 
-### Modifier un client
+### 2.6 — Modifier un client
 PUT {{baseUrl}}/clients/1
 Content-Type: application/json
 Authorization: Bearer {{token}}
@@ -92,11 +107,11 @@ Authorization: Bearer {{token}}
   "actif": true
 }
 
-### Désactiver un client (soft delete)
+### 2.7 — Désactiver un client
 PATCH {{baseUrl}}/clients/1/deactivate
 Authorization: Bearer {{token}}
 
-### Supprimer un client (ADMIN)
+### 2.8 — Supprimer un client (ADMIN)
 DELETE {{baseUrl}}/clients/1
 Authorization: Bearer {{token}}
 
@@ -105,50 +120,50 @@ Authorization: Bearer {{token}}
 ### 3. PRODUITS
 ### =========================================================
 
-### Liste tous les produits
+### 3.1 — Liste tous les produits
 GET {{baseUrl}}/produits
 Authorization: Bearer {{token}}
 
-### Produits actifs
+### 3.2 — Produits actifs
 GET {{baseUrl}}/produits/actifs
 Authorization: Bearer {{token}}
 
-### Produit par ID
-GET {{baseUrl}}/produits/1
+### 3.3 — Produit par ID
+GET {{baseUrl}}/produits/2
 Authorization: Bearer {{token}}
 
-### Produit par référence
+### 3.4 — Produit par référence
 GET {{baseUrl}}/produits/reference/PROD-001
 Authorization: Bearer {{token}}
 
-### Produits par catégorie
-GET {{baseUrl}}/produits/categorie/Développement
+### 3.5 — Produits par catégorie
+GET {{baseUrl}}/produits/categorie/Iphone
 Authorization: Bearer {{token}}
 
-### Rechercher produits
-GET {{baseUrl}}/produits/search?q=site
+### 3.6 — Rechercher produits
+GET {{baseUrl}}/produits/search?q=iPhone
 Authorization: Bearer {{token}}
 
-### Produits en stock faible
+### 3.7 — Produits en stock faible
 GET {{baseUrl}}/produits/stock-faible?seuil=10
 Authorization: Bearer {{token}}
 
-### Créer un produit
+### 3.8 — Créer un produit
 POST {{baseUrl}}/produits
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "reference": "PROD-008",
+  "reference": "PROD-001",
   "nom": "iPhone 16 Pro",
   "description": "Smartphone Apple",
   "prix": 3500000.00,
-  "prixAchat": 300000.00,
+  "prixAchat": 3000000.00,
   "stock": 10,
   "categorie": "Iphone"
 }
 
-### Modifier un produit
+### 3.9 — Modifier un produit
 PUT {{baseUrl}}/produits/2
 Content-Type: application/json
 Authorization: Bearer {{token}}
@@ -163,40 +178,101 @@ Authorization: Bearer {{token}}
   "categorie": "Iphone"
 }
 
-### Désactiver un produit
-PATCH {{baseUrl}}/produits/1/deactivate
-Authorization: Bearer {{token}}
-
-### Supprimer un produit (ADMIN)
-DELETE {{baseUrl}}/produits/1
+### 3.10 — Supprimer un produit (ADMIN)
+DELETE {{baseUrl}}/produits/2
 Authorization: Bearer {{token}}
 
 
 ### =========================================================
-### 4. COMMANDES
+### 4. FOURNISSEURS
 ### =========================================================
 
-### Liste toutes les commandes
+### 4.1 — Liste tous les fournisseurs
+GET {{baseUrl}}/fournisseurs
+Authorization: Bearer {{token}}
+
+### 4.2 — Fournisseurs actifs
+GET {{baseUrl}}/fournisseurs/actifs
+Authorization: Bearer {{token}}
+
+### 4.3 — Fournisseur par ID
+GET {{baseUrl}}/fournisseurs/1
+Authorization: Bearer {{token}}
+
+### 4.4 — Fournisseur par code
+GET {{baseUrl}}/fournisseurs/code/FOUR-001
+Authorization: Bearer {{token}}
+
+### 4.5 — Fournisseurs par pays
+GET {{baseUrl}}/fournisseurs/pays/France
+Authorization: Bearer {{token}}
+
+### 4.6 — Créer un fournisseur
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "code": "FOUR-002",
+  "nom": "Shenzhen Electronics Co.",
+  "email": "contact@shenzhen-elec.cn",
+  "telephone": "+86 755 1234 5678",
+  "adresse": "1234 Huaqiangbei Road, Futian District",
+  "ville": "Shenzhen",
+  "pays": "Chine",
+  "contactNom": "Li Wei"
+}
+
+### 4.7 — Modifier un fournisseur
+PUT {{baseUrl}}/fournisseurs/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "code": "FOUR-001",
+  "nom": "Apple France",
+  "email": "contact@apple.fr",
+  "telephone": "+33 1 23 45 67 89",
+  "adresse": "8 Rue de Londres",
+  "ville": "Paris",
+  "pays": "France",
+  "contactNom": "Jean Dupont"
+}
+
+### 4.8 — Désactiver un fournisseur
+PATCH {{baseUrl}}/fournisseurs/1/deactivate
+Authorization: Bearer {{token}}
+
+### 4.9 — Supprimer un fournisseur (ADMIN)
+DELETE {{baseUrl}}/fournisseurs/1
+Authorization: Bearer {{token}}
+
+
+### =========================================================
+### 5. COMMANDES DE VENTE
+### =========================================================
+
+### 5.1 — Liste toutes les commandes
 GET {{baseUrl}}/commandes
 Authorization: Bearer {{token}}
 
-### Commande par ID
+### 5.2 — Commande par ID
 GET {{baseUrl}}/commandes/1
 Authorization: Bearer {{token}}
 
-### Commande par numéro
+### 5.3 — Commande par numéro
 GET {{baseUrl}}/commandes/numero/CMD-2026-0001
 Authorization: Bearer {{token}}
 
-### Commandes d'un client
+### 5.4 — Commandes d'un client
 GET {{baseUrl}}/commandes/client/1
 Authorization: Bearer {{token}}
 
-### Commandes par statut
+### 5.5 — Commandes par statut
 GET {{baseUrl}}/commandes/statut/EN_ATTENTE
 Authorization: Bearer {{token}}
 
-### Créer une commande
+### 5.6 — Créer une commande de vente
 POST {{baseUrl}}/commandes
 Content-Type: application/json
 Authorization: Bearer {{token}}
@@ -207,11 +283,11 @@ Authorization: Bearer {{token}}
   "notes": "Commande urgente",
   "dateLivraisonPrevue": "2026-10-15",
   "lignes": [
-    { "produitId": 2, "quantite": 10 }
+    { "produitId": 1, "quantite": 30, "prixUnitaire": 1200000 }
   ]
 }
 
-### Modifier une commande (EN_ATTENTE uniquement)
+### 5.7 — Modifier une commande (EN_ATTENTE uniquement)
 PUT {{baseUrl}}/commandes/1
 Content-Type: application/json
 Authorization: Bearer {{token}}
@@ -225,127 +301,186 @@ Authorization: Bearer {{token}}
   ]
 }
 
-### Changer le statut — EN_ATTENTE → VALIDEE
+### 5.8 — EN_ATTENTE → VALIDEE
 PATCH {{baseUrl}}/commandes/1/statut/VALIDEE
 Authorization: Bearer {{token}}
 
-### Changer le statut — VALIDEE → EN_COURS
+### 5.9 — VALIDEE → EN_COURS
 PATCH {{baseUrl}}/commandes/1/statut/EN_COURS
 Authorization: Bearer {{token}}
 
-### Changer le statut — EN_COURS → LIVREE
+### 5.10 — EN_COURS → LIVREE (stock -N)
 PATCH {{baseUrl}}/commandes/1/statut/LIVREE
 Authorization: Bearer {{token}}
 
-### Annuler — depuis EN_ATTENTE ou VALIDEE ou EN_COURS
+### 5.11 — Annuler
 PATCH {{baseUrl}}/commandes/1/statut/ANNULEE
 Authorization: Bearer {{token}}
 
-### Supprimer une commande (ADMIN)
+### 5.12 — Supprimer une commande (ADMIN)
 DELETE {{baseUrl}}/commandes/1
 Authorization: Bearer {{token}}
 
 
 ### =========================================================
-### 5. PAIEMENTS
+### 6. PAIEMENTS
 ### =========================================================
 
-### Liste tous les paiements
+### 6.1 — Liste tous les paiements
 GET {{baseUrl}}/paiements
 Authorization: Bearer {{token}}
 
-### Paiement par ID
-GET {{baseUrl}}/paiements/1
-Authorization: Bearer {{token}}
-
-### Paiements d'une commande
+### 6.2 — Paiements d'une commande
 GET {{baseUrl}}/paiements/commande/1
 Authorization: Bearer {{token}}
 
-### Reste à payer d'une commande
+### 6.3 — Reste à payer d'une commande
 GET {{baseUrl}}/paiements/commande/1/reste
 Authorization: Bearer {{token}}
 
-### Paiements par statut
-GET {{baseUrl}}/paiements/statut/VALIDE
-Authorization: Bearer {{token}}
-
-### Enregistrer un paiement (WAVE)
+### 6.4 — Enregistrer un paiement (WAVE)
 POST {{baseUrl}}/paiements
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
   "commandeId": 1,
-  "montant": 2000.00,
+  "montant": 2000000.00,
   "methode": "WAVE",
   "reference": "TX-WAVE-001",
-  "notes": "Paiement mobile"
+  "notes": "Acompte 1"
 }
 
-### Enregistrer un paiement (ORANGE_MONEY)
+### 6.5 — Enregistrer un paiement (ORANGE_MONEY)
 POST {{baseUrl}}/paiements
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
   "commandeId": 1,
-  "montant": 3900.00,
+  "montant": 2130000.00,
   "methode": "ORANGE_MONEY",
   "reference": "TX-OM-001"
 }
 
-### Changer statut — REMBOURSE
+### 6.6 — Paiements par statut
+GET {{baseUrl}}/paiements/statut/VALIDE
+Authorization: Bearer {{token}}
+
+### 6.7 — Rembourser un paiement
 PATCH {{baseUrl}}/paiements/1/statut/REMBOURSE
 Authorization: Bearer {{token}}
 
-### Changer statut — ANNULE
+### 6.8 — Annuler un paiement
 PATCH {{baseUrl}}/paiements/1/statut/ANNULE
 Authorization: Bearer {{token}}
 
-### Supprimer un paiement (ADMIN)
+### 6.9 — Supprimer un paiement (ADMIN)
 DELETE {{baseUrl}}/paiements/1
 Authorization: Bearer {{token}}
 
 
 ### =========================================================
-### 6. ADMIN
+### 7. COMMANDES D'ACHAT
 ### =========================================================
 
-### Liste tous les utilisateurs
+### 7.1 — Liste toutes les commandes d'achat
+GET {{baseUrl}}/commandes-achat
+Authorization: Bearer {{token}}
+
+### 7.2 — Commande d'achat par ID
+GET {{baseUrl}}/commandes-achat/1
+Authorization: Bearer {{token}}
+
+### 7.3 — Commande d'achat par numéro
+GET {{baseUrl}}/commandes-achat/numero/ACH-2026-0001
+Authorization: Bearer {{token}}
+
+### 7.4 — Commandes d'achat d'un fournisseur
+GET {{baseUrl}}/commandes-achat/fournisseur/1
+Authorization: Bearer {{token}}
+
+### 7.5 — Commandes d'achat par statut
+GET {{baseUrl}}/commandes-achat/statut/EN_ATTENTE
+Authorization: Bearer {{token}}
+
+### 7.6 — Créer une commande d'achat
+POST {{baseUrl}}/commandes-achat
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "fournisseurId": 2,
+  "tvaPercent": 0,
+  "notes": "Réappro Pixels depuis Shenzhen (prix négocié)",
+  "dateReceptionPrevue": "2026-10-10",
+  "lignes": [
+    { "produitId": 1, "quantite": 50, "prixAchatUnitaire": 300000 }
+  ]
+}
+
+### Modifier une commande d'achat
+PUT {{baseUrl}}/commandes-achat/2
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "fournisseurId": 2,
+  "notes": "Réappro Pixels depuis Shenzhen (modifié)",
+  "dateReceptionPrevue": "2026-10-20",
+  "totalHt": 15000000,
+  "totalTtc": 15000000,
+  "tvaPercent": 0,
+  "lignes": [
+    { "produitId": 1, "quantite": 50, "prixAchatUnitaire": 300000, "sousTotal": 15000000 }
+  ]
+}
+
+### Supprimer une commande d'achat #1
+DELETE {{baseUrl}}/commandes-achat/1
+Authorization: Bearer {{token}}
+
+### 7.7 — EN_ATTENTE → COMMANDEE
+PATCH {{baseUrl}}/commandes-achat/1/statut/COMMANDEE
+Authorization: Bearer {{token}}
+
+### 7.8 — COMMANDEE → RECUE (STOCK +N ✅)
+PATCH {{baseUrl}}/commandes-achat/1/statut/RECUE
+Authorization: Bearer {{token}}
+
+### 7.9 — RECU_PARTIEL (optionnel)
+PATCH {{baseUrl}}/commandes-achat/1/statut/RECU_PARTIEL
+Authorization: Bearer {{token}}
+
+### 7.10 — Annuler une commande d'achat
+PATCH {{baseUrl}}/commandes-achat/1/statut/ANNULEE
+Authorization: Bearer {{token}}
+
+### 7.11 — Supprimer une commande d'achat (ADMIN)
+DELETE {{baseUrl}}/commandes-achat/1
+Authorization: Bearer {{token}}
+
+
+### =========================================================
+### 8. ADMIN
+### =========================================================
+
+### 8.1 — Liste tous les utilisateurs
 GET {{baseUrl}}/admin/users
 Authorization: Bearer {{token}}
 
-### Utilisateur par ID
+### 8.2 — Utilisateur par ID
 GET {{baseUrl}}/admin/users/1
 Authorization: Bearer {{token}}
 
-### Promouvoir un user en ADMIN
+### 8.3 — Promouvoir un user en ADMIN
 PATCH {{baseUrl}}/admin/users/2/promote
 Authorization: Bearer {{token}}
 
-### Rétrograder un ADMIN
+### 8.4 — Rétrograder un ADMIN
 PATCH {{baseUrl}}/admin/users/2/demote
 Authorization: Bearer {{token}}
 
-### Activer/Désactiver un user
+### 8.5 — Toggle actif
 PATCH {{baseUrl}}/admin/users/2/toggle-actif
 Authorization: Bearer {{token}}
-
-### Créer un fournisseur
-POST http://localhost:8080/api/fournisseurs
-Authorization: Bearer {{token}}
-Content-Type: application/json
-
-{
-  "code": "FOUR-002",
-  "nom": "Apple Inc.",
-  "email": "contact@apple.com",
-  "telephone": "+1 800 123 4567",
-  "adresse": "1 Infinite Loop",
-  "ville": "Cupertino",
-  "pays": "USA",
-  "contactNom": "Tim Cook"
-}
-
-
