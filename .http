@@ -331,3 +331,21 @@ Authorization: Bearer {{token}}
 ### Activer/Désactiver un user
 PATCH {{baseUrl}}/admin/users/2/toggle-actif
 Authorization: Bearer {{token}}
+
+### Créer un fournisseur
+POST http://localhost:8080/api/fournisseurs
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "code": "FOUR-002",
+  "nom": "Apple Inc.",
+  "email": "contact@apple.com",
+  "telephone": "+1 800 123 4567",
+  "adresse": "1 Infinite Loop",
+  "ville": "Cupertino",
+  "pays": "USA",
+  "contactNom": "Tim Cook"
+}
+
+
