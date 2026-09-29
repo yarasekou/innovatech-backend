@@ -3,7 +3,7 @@
 ### =========================================================
 @baseUrl = http://localhost:8080/api
 
-@token = eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX1VTRVIiXSwic3ViIjoieWFyYUBpbm5vdmF0ZWNoLmNvbSIsImlhdCI6MTc5MDY4NzkzNSwiZXhwIjoxNzkwNzc0MzM1fQ.2n-kmk8c4KXFIHo-NDZKpGRlIhisZji-iAorSjkuG-S-OD8GjatlNKJhkZCJCSWp7z8eNeG84xCfbRwAhz3CLw
+@token = eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX1VTRVIiXSwic3ViIjoib3VtYXJAaW5ub3ZhdGVjaC5jb20iLCJpYXQiOjE3OTA2OTgzNzcsImV4cCI6MTc5MDc4NDc3N30.Z5i_dPtCvjy5sV-vEyhCJfsCJa_QxCV6TUP-uqmFJbEAaJdjStLrvubLP9cIRUcGlDaDjvnRLhzjUuR7M3wYyQ
 
 
 ### =========================================================
@@ -15,12 +15,16 @@ POST {{baseUrl}}/auth/register
 Content-Type: application/json
 
 {
-  "username": "yara",
-  "email": "yara@innovatech.com",
+  "username": "oumar",
+  "email": "oumar@innovatech.com",
   "password": "password123",
-  "prenom": "Yara",
-  "nom": "Sékou"
+  "prenom": "Oumar",
+  "nom": "Diallo"
 }
+
+###  Promouvoir Oumar en SELLER (avec token ADMIN)
+PATCH {{baseUrl}}/admin/users/2/promote-seller
+Authorization: Bearer {{token}}
 
 ### 1.2 — Login (capture auto du token)
 POST {{baseUrl}}/auth/login

@@ -63,4 +63,24 @@ public class AdminController {
     public ResponseEntity<UserResponseDTO> toggleActif(@PathVariable Long id) {
         return ResponseEntity.ok(adminService.toggleActif(id));
     }
+
+    /**
+     * PATCH /api/admin/users/{id}/promote-seller
+     * Promeut un utilisateur en SELLER.
+     */
+    @PatchMapping("/users/{id}/promote-seller")
+    @Operation(summary = "Promouvoir un user en SELLER")
+    public ResponseEntity<UserResponseDTO> promoteSeller(@PathVariable Long id) {
+        return ResponseEntity.ok(adminService.promoteToSeller(id));
+    }
+
+    /**
+     * PATCH /api/admin/users/{id}/demote-seller
+     * Retire le rôle SELLER.
+     */
+    @PatchMapping("/users/{id}/demote-seller")
+    @Operation(summary = "Rétrograder un SELLER")
+    public ResponseEntity<UserResponseDTO> demoteSeller(@PathVariable Long id) {
+        return ResponseEntity.ok(adminService.demoteFromSeller(id));
+    }
 }

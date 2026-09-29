@@ -110,4 +110,41 @@ public class AdminService {
                 .stream()
                 .anyMatch(u -> u.getRoles().contains(Role.ROLE_ADMIN));
     }
+
+    @Transactional
+    public UserResponseDTO promoteToSeller(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+            throw new BusinessException("Cet utilisateur est déjà vendeur");
+        }
+
+        Set<Role> roles = new HashSet<>(user.getRoles());
+        roles.add(Role.ROLE_SELLER);
+        user.setRoles(roles);
+
+        User updated = userRepository.save(user);
+        log.info("Utilisateur {} promu SELLER", user.getEmail());
+        return userMapper.toResponseDTO(updated);
+    }
+
+    @Transactional
+    public UserResponseDTO demoteFromSeller(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+        if (!user.getRoles().contains(Role.ROLE_SELLER)) {
+            throw new BusinessException("Cet utilisateur n'est pas vendeur");
+        }
+
+        Set<Role> roles = new HashSet<>(user.getRoles());
+        roles.remove(Role.ROLE_SELLER);
+        roles.add(Role.ROLE_USER);   // Garder au moins ROLE_USER
+        user.setRoles(roles);
+
+        User updated = userRepository.save(user);
+        log.info("Utilisateur {} rétrogradé (plus SELLER)", user.getEmail());
+        return userMapper.toResponseDTO(updated);
+    }
 }

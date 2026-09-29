@@ -1,0 +1,284 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. AUTHENTIFICATION
+### =========================================================
+
+### 1.1 — Register Yara
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "yara",
+  "email": "yara@innovatech.com",
+  "password": "password123",
+  "prenom": "Yara",
+  "nom": "Sékou"
+}
+
+### 1.2 — Login (capture token)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+    client.log("Token : " + response.body.token.substring(0, 30) + "...");
+%}
+
+### 1.3 — Setup Admin
+POST {{baseUrl}}/auth/setup-admin
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "secretKey": "innova-setup-key-2026"
+}
+
+### 1.4 — Re-login (token avec ROLE_ADMIN)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+%}
+
+
+### =========================================================
+### 2. CATÉGORIES — BRANCHE TÉLÉPHONE
+### =========================================================
+
+### 2.1 — Accessoire
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Accessoire", "slug": "accessoire", "description": "Tous les accessoires" }
+
+### 2.2 — Téléphone
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Téléphone", "slug": "telephone", "parentId": 1 }
+
+### 2.3 — Google Pixel
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Google Pixel", "slug": "google-pixel", "parentId": 2 }
+
+### 2.4 — 10 Pro
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "10 Pro", "slug": "google-pixel-10-pro", "parentId": 3 }
+
+### 2.5 — 128G (Pixel)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "128G", "slug": "google-pixel-10-pro-128g", "parentId": 4 }
+
+### 2.6 — 256G (Pixel)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "256G", "slug": "google-pixel-10-pro-256g", "parentId": 4 }
+
+### 2.7 — Apple
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Apple", "slug": "apple", "parentId": 2 }
+
+### 2.8 — iPhone 16
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "iPhone 16", "slug": "iphone-16", "parentId": 7 }
+
+### 2.9 — 128G (iPhone)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "128G", "slug": "iphone-16-128g", "parentId": 8 }
+
+### 2.10 — 256G (iPhone)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "256G", "slug": "iphone-16-256g", "parentId": 8 }
+
+### 2.11 — Samsung
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Samsung", "slug": "samsung", "parentId": 2 }
+
+### 2.12 — Galaxy A
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy A", "slug": "samsung-galaxy-a", "parentId": 11 }
+
+### 2.13 — Galaxy A14
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy A14", "slug": "samsung-galaxy-a14", "parentId": 12 }
+
+### 2.14 — Galaxy A54
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy A54", "slug": "samsung-galaxy-a54", "parentId": 12 }
+
+### 2.15 — Galaxy S24
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy S24", "slug": "samsung-galaxy-s24", "parentId": 11 }
+
+### 2.16 — 128G (S24)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "128G", "slug": "samsung-galaxy-s24-128g", "parentId": 15 }
+
+### 2.17 — 256G (S24)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "256G", "slug": "samsung-galaxy-s24-256g", "parentId": 15 }
+
+### 2.18 — Tecno
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Tecno", "slug": "tecno", "parentId": 2 }
+
+### 2.19 — Camon 12
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Camon 12", "slug": "tecno-camon-12", "parentId": 18 }
+
+### 2.20 — Camon 15
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Camon 15", "slug": "tecno-camon-15", "parentId": 18 }
+
+### 2.21 — Camon 20
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Camon 20", "slug": "tecno-camon-20", "parentId": 18 }
+
+
+### =========================================================
+### 3. CATÉGORIES — BRANCHE POWER BANK
+### =========================================================
+
+### 3.1 — Power Bank
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Power Bank", "slug": "power-bank", "parentId": 1 }
+
+### 3.2 — Anker
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Anker", "slug": "anker", "parentId": 22 }
+
+### 3.3 — PowerCore
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "PowerCore", "slug": "powercore", "parentId": 23 }
+
+### 3.4 — 10000 mAh (Anker)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "10000 mAh", "slug": "powercore-10000", "parentId": 24 }
+
+### 3.5 — 20000 mAh (Anker)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "20000 mAh", "slug": "powercore-20000", "parentId": 24 }
+
+### 3.6 — 30000 mAh (Anker)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "30000 mAh", "slug": "powercore-30000", "parentId": 24 }
+
+### 3.7 — Xiaomi
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Xiaomi", "slug": "xiaomi", "parentId": 22 }
+
+### 3.8 — Mi Power Bank 3
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Mi Power Bank 3", "slug": "mi-power-bank-3", "parentId": 28 }
+
+### 3.9 — 10000 mAh (Mi)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "10000 mAh", "slug": "mi-power-bank-3-10000", "parentId": 29 }
+
+### 3.10 — 20000 mAh (Mi)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "20000 mAh", "slug": "mi-power-bank-3-20000", "parentId": 29 }

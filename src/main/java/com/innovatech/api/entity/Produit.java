@@ -14,12 +14,19 @@ import java.time.LocalDateTime;
 @Table(
         name = "produits",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_produit_reference", columnNames = "reference")
+                // ⚠️ AVANT : reference unique GLOBALEMENT
+                // @UniqueConstraint(name = "uk_produit_reference", columnNames = "reference")
+
+                // ✅ APRÈS : reference unique PAR user
+                @UniqueConstraint(
+                        name = "uk_produit_reference_user",
+                        columnNames = {"reference", "user_id"}
+                )
         },
         indexes = {
                 @Index(name = "idx_produit_nom", columnList = "nom"),
                 @Index(name = "idx_produit_categorie", columnList = "categorie_id"),
-                @Index(name = "idx_produit_user", columnList = "user_id")   // ← NOUVEAU
+                @Index(name = "idx_produit_user", columnList = "user_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
