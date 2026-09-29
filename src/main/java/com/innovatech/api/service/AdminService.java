@@ -111,6 +111,10 @@ public class AdminService {
                 .anyMatch(u -> u.getRoles().contains(Role.ROLE_ADMIN));
     }
 
+    /**
+     * Promeut un utilisateur en SELLER (rôle UNIQUE).
+     * Le rôle ROLE_USER est remplacé par ROLE_SELLER.
+     */
     @Transactional
     public UserResponseDTO promoteToSeller(Long userId) {
         User user = userRepository.findById(userId)
@@ -120,15 +124,20 @@ public class AdminService {
             throw new BusinessException("Cet utilisateur est déjà vendeur");
         }
 
-        Set<Role> roles = new HashSet<>(user.getRoles());
+        // ⚠️ SELLER remplace tous les autres rôles (sauf ADMIN)
+        Set<Role> roles = new HashSet<>();
         roles.add(Role.ROLE_SELLER);
         user.setRoles(roles);
 
         User updated = userRepository.save(user);
-        log.info("Utilisateur {} promu SELLER", user.getEmail());
+        log.info("Utilisateur {} promu SELLER (rôle unique)", user.getEmail());
         return userMapper.toResponseDTO(updated);
     }
 
+    /**
+     * Rétrograde un SELLER en USER.
+     * Le rôle ROLE_SELLER est remplacé par ROLE_USER.
+     */
     @Transactional
     public UserResponseDTO demoteFromSeller(Long userId) {
         User user = userRepository.findById(userId)
@@ -138,13 +147,13 @@ public class AdminService {
             throw new BusinessException("Cet utilisateur n'est pas vendeur");
         }
 
-        Set<Role> roles = new HashSet<>(user.getRoles());
-        roles.remove(Role.ROLE_SELLER);
-        roles.add(Role.ROLE_USER);   // Garder au moins ROLE_USER
+        // Remplace SELLER par USER
+        Set<Role> roles = new HashSet<>();
+        roles.add(Role.ROLE_USER);
         user.setRoles(roles);
 
         User updated = userRepository.save(user);
-        log.info("Utilisateur {} rétrogradé (plus SELLER)", user.getEmail());
+        log.info("Utilisateur {} rétrogradé USER (plus SELLER)", user.getEmail());
         return userMapper.toResponseDTO(updated);
     }
 }

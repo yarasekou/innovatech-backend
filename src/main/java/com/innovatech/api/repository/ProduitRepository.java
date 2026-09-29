@@ -62,4 +62,24 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
 
     @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user WHERE p.actif = true")
     List<Produit> findByActifTrueWithDetails();
+
+    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user WHERE p.user.id = :userId")
+    List<Produit> findByUserIdWithDetails(@Param("userId") Long userId);
+
+    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user " +
+            "WHERE p.user.id = :userId AND p.actif = true")
+    List<Produit> findByUserIdAndActifTrueWithDetails(@Param("userId") Long userId);
+
+    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user " +
+            "WHERE p.id = :id AND p.user.id = :userId")
+    Optional<Produit> findByIdAndUserIdWithDetails(@Param("id") Long id, @Param("userId") Long userId);
+
+    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user " +
+            "WHERE p.user.id = :userId AND LOWER(p.nom) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Produit> searchByUserId(@Param("userId") Long userId, @Param("query") String query);
+
+    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END " +
+            "FROM Produit p WHERE p.reference = :reference AND p.user.id = :userId")
+    boolean existsByReferenceAndUserId(@Param("reference") String reference,
+                                       @Param("userId") Long userId);
 }

@@ -1,0 +1,113 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### ÉTAPE 1 — Login Yara (ADMIN)
+### =========================================================
+# @name loginYara
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenAdmin", response.body.token);
+    client.log("✅ Token Yara capturé");
+%}
+
+
+### =========================================================
+### ÉTAPE 2 — Register Oumar
+### =========================================================
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "oumar",
+  "email": "oumar@innovatech.com",
+  "password": "password123",
+  "prenom": "Oumar",
+  "nom": "Diallo"
+}
+
+
+### =========================================================
+### ÉTAPE 3 — Promouvoir Oumar en SELLER
+### =========================================================
+PATCH {{baseUrl}}/admin/users/2/promote-seller
+Authorization: Bearer {{tokenAdmin}}
+
+
+### =========================================================
+### ÉTAPE 4 — Login Oumar (capture token)
+### =========================================================
+# @name loginOumar
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "oumar@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenOumar", response.body.token);
+    client.log("✅ Token Oumar capturé");
+%}
+
+
+### =========================================================
+### ÉTAPE 5 — Oumar crée SON iPhone 16 128G
+### =========================================================
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{tokenOumar}}
+
+{
+  "reference": "IPHONE16-128G",
+  "nom": "iPhone 16 128G (Oumar)",
+  "description": "iPhone 16 128G vendu par Oumar",
+  "prix": 1150000,
+  "prixAchat": 850000,
+  "stock": 20,
+  "categorieId": 9
+}
+
+
+### =========================================================
+### ÉTAPE 6 — Oumar crée SON Pixel 10 Pro 128G
+### =========================================================
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{tokenOumar}}
+
+{
+  "reference": "PIXEL-10P-128G",
+  "nom": "Google Pixel 10 Pro 128G (Oumar)",
+  "description": "Pixel vendu par Oumar",
+  "prix": 820000,
+  "prixAchat": 620000,
+  "stock": 15,
+  "categorieId": 5
+}
+
+
+### =========================================================
+### ÉTAPE 7 — Yara (ADMIN) voit TOUS les produits
+### =========================================================
+GET {{baseUrl}}/produits
+Authorization: Bearer {{tokenAdmin}}
+
+
+### =========================================================
+### ÉTAPE 8 — Oumar (SELLER) voit tous les produits
+### (pour l'instant — isolation viendra à la Session 2)
+### =========================================================
+GET {{baseUrl}}/produits
+Authorization: Bearer {{tokenOumar}}
