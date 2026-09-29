@@ -24,14 +24,18 @@ public class ProduitResponseDTO {
 
     private Integer stock;
 
-    // -----------------------------------------
-    // Catégorie (version aplatie)
-    // -----------------------------------------
+    // Catégorie
     private Long categorieId;
     private String categorieNom;
     private String categorieSlug;
-    private String categorieChemin;      // "Accessoire > Téléphone > Google Pixel"
+    private String categorieChemin;
     private Integer categorieNiveau;
+
+    // Utilisateur créateur
+    private Long userId;
+    private String userEmail;
+    private String userNom;
+    private String userPrenom;
 
     private boolean actif;
     private LocalDateTime dateCreation;

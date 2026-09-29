@@ -18,7 +18,8 @@ import java.time.LocalDateTime;
         },
         indexes = {
                 @Index(name = "idx_produit_nom", columnList = "nom"),
-                @Index(name = "idx_produit_categorie", columnList = "categorie_id")   // ← nouveau
+                @Index(name = "idx_produit_categorie", columnList = "categorie_id"),
+                @Index(name = "idx_produit_user", columnList = "user_id")   // ← NOUVEAU
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -27,7 +28,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "categorie")   // ← exclure pour éviter boucle
+@ToString(exclude = {"categorie", "user"})   // ← exclure "user" aussi
 public class Produit {
 
     @Id
@@ -43,15 +44,9 @@ public class Produit {
     @Column(name = "description", length = 1000)
     private String description;
 
-    /**
-     * Prix de VENTE au client (HT).
-     */
     @Column(name = "prix", nullable = false, precision = 12, scale = 2)
     private BigDecimal prix;
 
-    /**
-     * Prix d'ACHAT auprès du fournisseur (HT).
-     */
     @Column(name = "prix_achat", nullable = false, precision = 12, scale = 2)
     @Builder.Default
     private BigDecimal prixAchat = BigDecimal.ZERO;
@@ -60,15 +55,25 @@ public class Produit {
     @Builder.Default
     private Integer stock = 0;
 
-    /**
-     * Catégorie du produit (relation hiérarchique).
-     */
+    // -----------------------------------------
+    // Catégorie
+    // -----------------------------------------
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "categorie_id",
             foreignKey = @ForeignKey(name = "fk_produit_categorie")
     )
     private Categorie categorie;
+
+    // -----------------------------------------
+    // Utilisateur créateur
+    // -----------------------------------------
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "user_id",
+            foreignKey = @ForeignKey(name = "fk_produit_user")
+    )
+    private User user;
 
     @Column(name = "actif", nullable = false)
     @Builder.Default

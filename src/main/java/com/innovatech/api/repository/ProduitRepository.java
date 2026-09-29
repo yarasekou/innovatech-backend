@@ -53,4 +53,13 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
         WHERE p.categorie_id IN (SELECT id FROM tree)
         """, nativeQuery = true)
     List<Produit> findByCategorieAndDescendants(@Param("categorieId") Long categorieId);
+
+    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user WHERE p.id = :id")
+    Optional<Produit> findByIdWithDetails(@Param("id") Long id);
+
+    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user ORDER BY p.id")
+    List<Produit> findAllWithDetails();
+
+    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user WHERE p.actif = true")
+    List<Produit> findByActifTrueWithDetails();
 }

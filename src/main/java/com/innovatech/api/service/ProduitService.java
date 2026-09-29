@@ -4,11 +4,13 @@ import com.innovatech.api.dto.ProduitRequestDTO;
 import com.innovatech.api.dto.ProduitResponseDTO;
 import com.innovatech.api.entity.Categorie;
 import com.innovatech.api.entity.Produit;
+import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.ProduitMapper;
 import com.innovatech.api.repository.CategorieRepository;
 import com.innovatech.api.repository.ProduitRepository;
+import com.innovatech.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ public class ProduitService {
 
     private final ProduitRepository produitRepository;
     private final CategorieRepository categorieRepository;
+    private final UserRepository userRepository;
     private final ProduitMapper produitMapper;
 
     // -----------------------------------------
@@ -29,21 +32,21 @@ public class ProduitService {
     // -----------------------------------------
 
     public List<ProduitResponseDTO> findAll() {
-        return produitRepository.findAllWithCategorie()
+        return produitRepository.findAllWithDetails()
                 .stream()
                 .map(produitMapper::toResponseDTO)
                 .toList();
     }
 
     public List<ProduitResponseDTO> findAllActifs() {
-        return produitRepository.findByActifTrueWithCategorie()
+        return produitRepository.findByActifTrueWithDetails()
                 .stream()
                 .map(produitMapper::toResponseDTO)
                 .toList();
     }
 
     public ProduitResponseDTO findById(Long id) {
-        Produit produit = produitRepository.findByIdWithCategorie(id)
+        Produit produit = produitRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
         return produitMapper.toResponseDTO(produit);
     }
@@ -69,9 +72,6 @@ public class ProduitService {
                 .toList();
     }
 
-    /**
-     * Produits par catégorie (directs ou avec descendants).
-     */
     public List<ProduitResponseDTO> findByCategorie(Long categorieId, boolean includeDescendants) {
         if (!categorieRepository.existsById(categorieId)) {
             throw new ResourceNotFoundException("Categorie", categorieId);
@@ -91,15 +91,16 @@ public class ProduitService {
     // -----------------------------------------
 
     @Transactional
-    public ProduitResponseDTO create(ProduitRequestDTO dto) {
+    public ProduitResponseDTO create(ProduitRequestDTO dto, String userEmail) {
         if (produitRepository.existsByReference(dto.getReference())) {
             throw new BusinessException(
                     "Un produit avec la référence " + dto.getReference() + " existe déjà");
         }
 
         Categorie categorie = resolveCategorie(dto.getCategorieId());
+        User user = resolveUser(userEmail);
 
-        Produit produit = produitMapper.toEntity(dto, categorie);
+        Produit produit = produitMapper.toEntity(dto, categorie, user);
         Produit saved = produitRepository.save(produit);
         return produitMapper.toResponseDTO(saved);
     }
@@ -110,7 +111,7 @@ public class ProduitService {
 
     @Transactional
     public ProduitResponseDTO update(Long id, ProduitRequestDTO dto) {
-        Produit existing = produitRepository.findByIdWithCategorie(id)
+        Produit existing = produitRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
 
         if (!existing.getReference().equals(dto.getReference())
@@ -149,14 +150,19 @@ public class ProduitService {
     // MÉTHODES PRIVÉES
     // -----------------------------------------
 
-    /**
-     * Résout la catégorie par ID (null si categorieId null).
-     */
     private Categorie resolveCategorie(Long categorieId) {
         if (categorieId == null) {
             return null;
         }
         return categorieRepository.findById(categorieId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categorie", categorieId));
+    }
+
+    private User resolveUser(String userEmail) {
+        if (userEmail == null) {
+            return null;
+        }
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User avec email " + userEmail));
     }
 }

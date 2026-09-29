@@ -154,13 +154,13 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "reference": "IPHONE16-256G",
-  "nom": "iPhone 16 256G",
-  "description": "Smartphone Apple iPhone 16, 256 Go",
-  "prix": 1400000,
-  "prixAchat": 1050000,
-  "stock": 3,
-  "categorieId": 10
+  "reference": "TEST-USER-01",
+  "nom": "Produit test avec user",
+  "description": "Test de la relation user",
+  "prix": 100000,
+  "prixAchat": 70000,
+  "stock": 5,
+  "categorieId": 5
 }
 
 ### 5. Samsung Galaxy A14

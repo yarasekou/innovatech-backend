@@ -10,6 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -54,11 +56,15 @@ public class ProduitController {
         return ResponseEntity.ok(produitService.findStockFaible(seuil));
     }
 
+
     @PostMapping
     @Operation(summary = "Créer un nouveau produit")
     public ResponseEntity<ProduitResponseDTO> create(
-            @Valid @RequestBody ProduitRequestDTO dto) {
-        ProduitResponseDTO created = produitService.create(dto);
+            @Valid @RequestBody ProduitRequestDTO dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+
+        String userEmail = userDetails != null ? userDetails.getUsername() : null;
+        ProduitResponseDTO created = produitService.create(dto, userEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

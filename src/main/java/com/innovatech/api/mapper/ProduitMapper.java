@@ -4,12 +4,13 @@ import com.innovatech.api.dto.ProduitRequestDTO;
 import com.innovatech.api.dto.ProduitResponseDTO;
 import com.innovatech.api.entity.Categorie;
 import com.innovatech.api.entity.Produit;
+import com.innovatech.api.entity.User;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ProduitMapper {
 
-    public Produit toEntity(ProduitRequestDTO dto, Categorie categorie) {
+    public Produit toEntity(ProduitRequestDTO dto, Categorie categorie, User user) {
         if (dto == null) return null;
 
         return Produit.builder()
@@ -20,7 +21,8 @@ public class ProduitMapper {
                 .prixAchat(dto.getPrixAchat() != null ? dto.getPrixAchat() : java.math.BigDecimal.ZERO)
                 .stock(dto.getStock())
                 .categorie(categorie)
-                .actif(dto.getActif() == null || dto.getActif())
+                .user(user)   // ← NOUVEAU
+                .actif(dto.getActif() != null ? dto.getActif() : true)
                 .build();
     }
 
@@ -32,6 +34,7 @@ public class ProduitMapper {
         entity.setPrixAchat(dto.getPrixAchat() != null ? dto.getPrixAchat() : entity.getPrixAchat());
         entity.setStock(dto.getStock());
         entity.setCategorie(categorie);
+        // ⚠️ On ne touche PAS au user en UPDATE (il reste le créateur initial)
         entity.setActif(dto.getActif() != null ? dto.getActif() : entity.isActif());
     }
 
@@ -60,6 +63,15 @@ public class ProduitMapper {
                     .categorieSlug(cat.getSlug())
                     .categorieChemin(cat.getCheminComplet())
                     .categorieNiveau(cat.getNiveau());
+        }
+
+        // User créateur
+        if (entity.getUser() != null) {
+            User user = entity.getUser();
+            builder.userId(user.getId())
+                    .userEmail(user.getEmail())
+                    .userNom(user.getNom())
+                    .userPrenom(user.getPrenom());
         }
 
         return builder.build();
