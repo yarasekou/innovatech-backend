@@ -3,7 +3,7 @@
 ### =========================================================
 @baseUrl = http://localhost:8080/api
 
-@token = eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX1VTRVIiXSwic3ViIjoieWFyYUBpbm5vdmF0ZWNoLmNvbSIsImlhdCI6MTc5MDYwNTY3OCwiZXhwIjoxNzkwNjkyMDc4fQ.IZVVypFKZdQRR8oDkJfwIyaQkTiE2Be8Qk5PZyutOAcjN3YnAQxljVq5dk3uEwb2SI8ja7lzgO36N5vXgcONsw
+@token = eyJhbGciOiJIUzUxMiJ9.eyJhdXRob3JpdGllcyI6WyJST0xFX1VTRVIiXSwic3ViIjoieWFyYUBpbm5vdmF0ZWNoLmNvbSIsImlhdCI6MTc5MDY4NzkzNSwiZXhwIjoxNzkwNzc0MzM1fQ.2n-kmk8c4KXFIHo-NDZKpGRlIhisZji-iAorSjkuG-S-OD8GjatlNKJhkZCJCSWp7z8eNeG84xCfbRwAhz3CLw
 
 
 ### =========================================================
@@ -154,13 +154,223 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "reference": "PROD-001",
-  "nom": "iPhone 16 Pro",
-  "description": "Smartphone Apple",
-  "prix": 3500000.00,
-  "prixAchat": 3000000.00,
+  "reference": "IPHONE16-256G",
+  "nom": "iPhone 16 256G",
+  "description": "Smartphone Apple iPhone 16, 256 Go",
+  "prix": 1400000,
+  "prixAchat": 1050000,
+  "stock": 3,
+  "categorieId": 10
+}
+
+### 5. Samsung Galaxy A14
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "SAM-A14",
+  "nom": "Samsung Galaxy A14",
+  "description": "Smartphone Samsung Galaxy A14",
+  "prix": 120000,
+  "prixAchat": 85000,
+  "stock": 15,
+  "categorieId": 25
+}
+
+### 6. Samsung Galaxy A54
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "SAM-A54",
+  "nom": "Samsung Galaxy A54",
+  "description": "Smartphone Samsung Galaxy A54",
+  "prix": 250000,
+  "prixAchat": 180000,
   "stock": 10,
-  "categorie": "Iphone"
+  "categorieId": 26
+}
+
+### 7. Samsung Galaxy S24 128G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "SAM-S24-128G",
+  "nom": "Samsung Galaxy S24 128G",
+  "description": "Smartphone Samsung Galaxy S24, 128 Go",
+  "prix": 750000,
+  "prixAchat": 550000,
+  "stock": 8,
+  "categorieId": 28
+}
+
+### 8. Samsung Galaxy S24 256G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "SAM-S24-256G",
+  "nom": "Samsung Galaxy S24 256G",
+  "description": "Smartphone Samsung Galaxy S24, 256 Go",
+  "prix": 850000,
+  "prixAchat": 620000,
+  "stock": 5,
+  "categorieId": 29
+}
+
+### 9. Tecno Camon 12
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "TECNO-CAMON12",
+  "nom": "Tecno Camon 12",
+  "description": "Smartphone Tecno Camon 12",
+  "prix": 150000,
+  "prixAchat": 100000,
+  "stock": 20,
+  "categorieId": 13
+}
+
+### 10. Tecno Camon 15
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "TECNO-CAMON15",
+  "nom": "Tecno Camon 15",
+  "description": "Smartphone Tecno Camon 15",
+  "prix": 120000,
+  "prixAchat": 85000,
+  "stock": 25,
+  "categorieId": 30
+}
+
+### 11. Tecno Camon 20
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "TECNO-CAMON20",
+  "nom": "Tecno Camon 20",
+  "description": "Smartphone Tecno Camon 20",
+  "prix": 180000,
+  "prixAchat": 130000,
+  "stock": 20,
+  "categorieId": 31
+}
+
+### 12. Tecno Spark 10 128G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "TECNO-SPARK10-128G",
+  "nom": "Tecno Spark 10 128G",
+  "description": "Smartphone Tecno Spark 10, 128 Go",
+  "prix": 95000,
+  "prixAchat": 65000,
+  "stock": 30,
+  "categorieId": 33
+}
+
+### 13. Tecno Spark 10 256G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "TECNO-SPARK10-256G",
+  "nom": "Tecno Spark 10 256G",
+  "description": "Smartphone Tecno Spark 10, 256 Go",
+  "prix": 115000,
+  "prixAchat": 80000,
+  "stock": 25,
+  "categorieId": 34
+}
+
+### 14. Anker PowerCore 10000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "ANKER-PC10000",
+  "nom": "Anker PowerCore 10000 mAh",
+  "description": "Batterie externe Anker 10000 mAh",
+  "prix": 25000,
+  "prixAchat": 18000,
+  "stock": 50,
+  "categorieId": 17
+}
+
+### 15. Anker PowerCore 20000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "ANKER-PC20000",
+  "nom": "Anker PowerCore 20000 mAh",
+  "description": "Batterie externe Anker 20000 mAh",
+  "prix": 40000,
+  "prixAchat": 30000,
+  "stock": 30,
+  "categorieId": 18
+}
+
+### 16. Anker PowerCore 30000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "ANKER-PC30000",
+  "nom": "Anker PowerCore 30000 mAh",
+  "description": "Batterie externe Anker 30000 mAh",
+  "prix": 60000,
+  "prixAchat": 45000,
+  "stock": 15,
+  "categorieId": 19
+}
+
+### 17. Xiaomi Mi Power Bank 3 10000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "XIAOMI-MPB3-10000",
+  "nom": "Xiaomi Mi Power Bank 3 10000 mAh",
+  "description": "Batterie externe Xiaomi 10000 mAh",
+  "prix": 20000,
+  "prixAchat": 14000,
+  "stock": 40,
+  "categorieId": 22
+}
+
+### 18. Xiaomi Mi Power Bank 3 20000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "reference": "XIAOMI-MPB3-20000",
+  "nom": "Xiaomi Mi Power Bank 3 20000 mAh",
+  "description": "Batterie externe Xiaomi 20000 mAh",
+  "prix": 35000,
+  "prixAchat": 25000,
+  "stock": 25,
+  "categorieId": 23
 }
 
 ### 3.9 — Modifier un produit
@@ -169,13 +379,13 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "reference": "PROD-008",
-  "nom": "iPhone 16 Pro",
-  "description": "Smartphone Apple",
-  "prix": 3500000.00,
-  "prixAchat": 3000000.00,
-  "stock": 10,
-  "categorie": "Iphone"
+  "reference": "PIXEL-10P-256G",
+  "nom": "Google Pixel 10 Pro 256G",
+  "description": "Smartphone Google Pixel 10 Pro, 256 Go",
+  "prix": 900000,
+  "prixAchat": 700000,
+  "stock": 8,
+  "categorieId": 6
 }
 
 ### 3.10 — Supprimer un produit (ADMIN)
@@ -483,4 +693,88 @@ Authorization: Bearer {{token}}
 
 ### 8.5 — Toggle actif
 PATCH {{baseUrl}}/admin/users/2/toggle-actif
+Authorization: Bearer {{token}}
+
+### Catégorie
+
+###  Créer la racine "Accessoire"
+
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nom": "Accessoire",
+  "description": "Tous les accessoires",
+  "slug": "accessoire"
+}
+
+### Créer "Téléphone" (enfant d'Accessoire)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nom": "Power Bank",
+  "description": "Batteries externes et chargeurs portables",
+  "slug": "power-bank",
+  "parentId": 1
+}
+
+### Créer "Google Pixel"
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nom": "Galaxy A54",
+  "slug": "samsung-galaxy-a54",
+  "parentId": 24
+}
+
+### Créer "10 Pro"
+
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nom": "Camon 15",
+  "slug": "tecno-camon-15",
+  "parentId": 12
+}
+
+### Créer "128G" et "256G"
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "nom": "256G",
+  "slug": "tecno-spark-10-256g",
+  "parentId": 32
+}
+### Voir les tree
+
+GET  {{baseUrl}}/categories/tree
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+### Afficher les catégories
+
+GET {{baseUrl}}/categories
+Authorization: Bearer {{token}}
+
+### Toutes les feuilles
+
+GET {{baseUrl}}/categories/feuilles
+Authorization: Bearer {{token}}
+
+###  Feuilles sous "Téléphone" (id 2)
+GET {{baseUrl}}/categories/2/feuilles
+Authorization: Bearer {{token}}
+
+###  Feuilles sous "Power Bank" (id 14)
+
+GET {{baseUrl}}/categories/14/feuilles
 Authorization: Bearer {{token}}

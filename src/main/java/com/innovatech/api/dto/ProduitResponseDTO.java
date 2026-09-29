@@ -17,16 +17,22 @@ public class ProduitResponseDTO {
     private String nom;
     private String description;
 
-    // Prix
-    private BigDecimal prix;           // Prix de vente
-    private BigDecimal prixAchat;      // Prix d'achat
-
-    // Marge (calculée)
+    private BigDecimal prix;
+    private BigDecimal prixAchat;
     private BigDecimal margeUnitaire;
     private BigDecimal tauxMarge;
 
     private Integer stock;
-    private String categorie;
+
+    // -----------------------------------------
+    // Catégorie (version aplatie)
+    // -----------------------------------------
+    private Long categorieId;
+    private String categorieNom;
+    private String categorieSlug;
+    private String categorieChemin;      // "Accessoire > Téléphone > Google Pixel"
+    private Integer categorieNiveau;
+
     private boolean actif;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;

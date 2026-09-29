@@ -18,7 +18,7 @@ import java.time.LocalDateTime;
         },
         indexes = {
                 @Index(name = "idx_produit_nom", columnList = "nom"),
-                @Index(name = "idx_produit_categorie", columnList = "categorie")
+                @Index(name = "idx_produit_categorie", columnList = "categorie_id")   // ← nouveau
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -27,7 +27,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+@ToString(exclude = "categorie")   // ← exclure pour éviter boucle
 public class Produit {
 
     @Id
@@ -51,7 +51,6 @@ public class Produit {
 
     /**
      * Prix d'ACHAT auprès du fournisseur (HT).
-     * Utilisé pour calculer la marge.
      */
     @Column(name = "prix_achat", nullable = false, precision = 12, scale = 2)
     @Builder.Default
@@ -61,8 +60,15 @@ public class Produit {
     @Builder.Default
     private Integer stock = 0;
 
-    @Column(name = "categorie", length = 100)
-    private String categorie;
+    /**
+     * Catégorie du produit (relation hiérarchique).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "categorie_id",
+            foreignKey = @ForeignKey(name = "fk_produit_categorie")
+    )
+    private Categorie categorie;
 
     @Column(name = "actif", nullable = false)
     @Builder.Default
@@ -80,9 +86,6 @@ public class Produit {
     // MÉTHODES CALCULÉES
     // -----------------------------------------
 
-    /**
-     * Marge unitaire = prix de vente - prix d'achat.
-     */
     public BigDecimal getMargeUnitaire() {
         if (prix == null || prixAchat == null) {
             return BigDecimal.ZERO;
@@ -90,10 +93,6 @@ public class Produit {
         return prix.subtract(prixAchat);
     }
 
-    /**
-     * Taux de marge en pourcentage.
-     * Formule : (marge / prix achat) × 100
-     */
     public BigDecimal getTauxMarge() {
         if (prixAchat == null || prixAchat.compareTo(BigDecimal.ZERO) == 0) {
             return BigDecimal.ZERO;

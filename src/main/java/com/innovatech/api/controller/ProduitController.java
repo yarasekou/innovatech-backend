@@ -43,11 +43,6 @@ public class ProduitController {
         return ResponseEntity.ok(produitService.findByReference(reference));
     }
 
-    @GetMapping("/categorie/{categorie}")
-    public ResponseEntity<List<ProduitResponseDTO>> getByCategorie(@PathVariable String categorie) {
-        return ResponseEntity.ok(produitService.findByCategorie(categorie));
-    }
-
     @GetMapping("/search")
     public ResponseEntity<List<ProduitResponseDTO>> search(@RequestParam("q") String query) {
         return ResponseEntity.ok(produitService.search(query));
@@ -86,5 +81,15 @@ public class ProduitController {
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         produitService.deactivate(id);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Filtre par catégorie (avec option descendants).
+     */
+    @GetMapping("/categorie/{categorieId}")
+    public ResponseEntity<List<ProduitResponseDTO>> getByCategorie(
+            @PathVariable Long categorieId,
+            @RequestParam(value = "deep", defaultValue = "false") boolean deep) {
+        return ResponseEntity.ok(produitService.findByCategorie(categorieId, deep));
     }
 }
