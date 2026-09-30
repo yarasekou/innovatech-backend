@@ -31,6 +31,7 @@ public class AdminController {
 
     @GetMapping("/users")
     @Operation(summary = "Liste tous les utilisateurs")
+
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(adminService.findAllUsers());
     }

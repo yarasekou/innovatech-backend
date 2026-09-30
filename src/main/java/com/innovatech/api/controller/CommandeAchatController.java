@@ -51,6 +51,7 @@ public class CommandeAchatController {
 
     @PostMapping
     @Operation(summary = "Créer une nouvelle commande d'achat")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CommandeAchatResponseDTO> create(
             @Valid @RequestBody CommandeAchatRequestDTO dto) {
         CommandeAchatResponseDTO created = commandeAchatService.create(dto);
@@ -58,6 +59,7 @@ public class CommandeAchatController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CommandeAchatResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody CommandeAchatRequestDTO dto) {

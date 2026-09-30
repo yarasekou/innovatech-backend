@@ -54,6 +54,7 @@ public class PaiementController {
 
     @PostMapping
     @Operation(summary = "Enregistrer un nouveau paiement")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<PaiementResponseDTO> create(
             @Valid @RequestBody PaiementRequestDTO dto) {
         PaiementResponseDTO created = paiementService.create(dto);
@@ -61,6 +62,7 @@ public class PaiementController {
     }
 
     @PatchMapping("/{id}/statut/{nouveauStatut}")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<PaiementResponseDTO> changerStatut(
             @PathVariable Long id,
             @PathVariable StatutPaiement nouveauStatut) {

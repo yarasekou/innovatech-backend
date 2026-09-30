@@ -45,6 +45,7 @@ public class ClientController {
 
     @PostMapping
     @Operation(summary = "Créer un nouveau client")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ClientResponseDTO> create(
             @Valid @RequestBody ClientRequestDTO dto) {
         ClientResponseDTO created = clientService.create(dto);
@@ -52,6 +53,7 @@ public class ClientController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ClientResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody ClientRequestDTO dto) {
@@ -67,6 +69,7 @@ public class ClientController {
     }
 
     @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         clientService.deactivate(id);
         return ResponseEntity.noContent().build();

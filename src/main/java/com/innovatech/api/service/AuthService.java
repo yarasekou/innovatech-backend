@@ -1,11 +1,10 @@
 package com.innovatech.api.service;
 
-import com.innovatech.api.dto.AuthResponseDTO;
-import com.innovatech.api.dto.LoginRequestDTO;
-import com.innovatech.api.dto.RegisterRequestDTO;
+import com.innovatech.api.dto.*;
 import com.innovatech.api.entity.Role;
 import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
+import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.repository.UserRepository;
 import com.innovatech.api.security.CustomUserDetailsService;
 import com.innovatech.api.security.JwtService;
@@ -20,8 +19,6 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.innovatech.api.dto.SetupAdminDTO;
-import com.innovatech.api.dto.UserResponseDTO;
 import com.innovatech.api.mapper.UserMapper;
 import java.util.HashSet;
 
@@ -139,5 +136,25 @@ public class AuthService {
 
         log.info("Premier ADMIN créé : {}", email);
         return userMapper.toResponseDTO(user);
+    }
+
+    /**
+     * Change le mot de passe de l'utilisateur connecté.
+     */
+    @Transactional
+    public void changePassword(String email, ChangePasswordDTO dto) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
+
+        // Vérifier l'ancien mot de passe
+        if (!passwordEncoder.matches(dto.getAncienMotDePasse(), user.getPassword())) {
+            throw new BusinessException("L'ancien mot de passe est incorrect");
+        }
+
+        // Encoder et enregistrer le nouveau
+        user.setPassword(passwordEncoder.encode(dto.getNouveauMotDePasse()));
+        userRepository.save(user);
+        log.info("Mot de passe changé pour {}", email);
     }
 }

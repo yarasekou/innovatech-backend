@@ -55,6 +55,7 @@ public class FournisseurController {
 
     @PostMapping
     @Operation(summary = "Créer un nouveau fournisseur")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<FournisseurResponseDTO> create(
             @Valid @RequestBody FournisseurRequestDTO dto) {
         FournisseurResponseDTO created = fournisseurService.create(dto);
@@ -62,6 +63,7 @@ public class FournisseurController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<FournisseurResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody FournisseurRequestDTO dto) {
@@ -77,6 +79,7 @@ public class FournisseurController {
     }
 
     @PatchMapping("/{id}/deactivate")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         fournisseurService.deactivate(id);
         return ResponseEntity.noContent().build();

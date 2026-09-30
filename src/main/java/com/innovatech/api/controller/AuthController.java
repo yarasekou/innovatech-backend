@@ -1,8 +1,6 @@
 package com.innovatech.api.controller;
 
-import com.innovatech.api.dto.AuthResponseDTO;
-import com.innovatech.api.dto.LoginRequestDTO;
-import com.innovatech.api.dto.RegisterRequestDTO;
+import com.innovatech.api.dto.*;
 import com.innovatech.api.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,8 +9,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.innovatech.api.dto.SetupAdminDTO;
-import com.innovatech.api.dto.UserResponseDTO;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -55,5 +51,18 @@ public class AuthController {
             @AuthenticationPrincipal UserDetails userDetails) {
 
         return ResponseEntity.ok(authService.setupFirstAdmin(dto, userDetails.getUsername()));
+    }
+
+    /**
+     * POST /api/auth/change-password
+     * Change le mot de passe de l'utilisateur connecté.
+     */
+    @PostMapping("/change-password")
+    @Operation(summary = "Changer mon mot de passe")
+    public ResponseEntity<Void> changePassword(
+            @Valid @RequestBody ChangePasswordDTO dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        authService.changePassword(userDetails.getUsername(), dto);
+        return ResponseEntity.ok().build();
     }
 }

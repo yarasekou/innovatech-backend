@@ -65,6 +65,7 @@ public class CategorieController {
 
     @PostMapping
     @Operation(summary = "Créer une catégorie")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<CategorieResponseDTO> create(
             @Valid @RequestBody CategorieRequestDTO dto) {
         CategorieResponseDTO created = categorieService.create(dto);
@@ -72,6 +73,7 @@ public class CategorieController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<CategorieResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody CategorieRequestDTO dto) {

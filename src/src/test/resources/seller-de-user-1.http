@@ -1,0 +1,62 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. LOGIN FATOU
+### =========================================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@innovatech.com",
+  "password": "Fatou123"
+}
+
+> {%
+    client.global.set("tokenFatou", response.body.token);
+    client.log("✅ Token Fatou capturé");
+%}
+
+
+### =========================================================
+### 2. FATOU CRÉE ALI (SELLER)
+### =========================================================
+### ⚠️ Nouveau endpoint /sellers (pas /auth/register)
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+Authorization: Bearer {{tokenFatou}}
+
+{
+  "username": "ali",
+  "email": "ali@innovatech.com",
+  "password": "password123",
+  "prenom": "Ali",
+  "nom": "Ndiaye"
+}
+
+
+### =========================================================
+### 3. FATOU VOIT SES SELLERs
+### =========================================================
+GET {{baseUrl}}/sellers
+Authorization: Bearer {{tokenFatou}}
+
+
+### =========================================================
+### 4. LOGIN ALI
+### =========================================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenAli", response.body.token);
+    client.log("✅ Token Ali capturé");
+%}

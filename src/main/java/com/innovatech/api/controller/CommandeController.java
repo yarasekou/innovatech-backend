@@ -51,6 +51,7 @@ public class CommandeController {
 
     @PostMapping
     @Operation(summary = "Créer une nouvelle commande")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CommandeResponseDTO> create(
             @Valid @RequestBody CommandeRequestDTO dto) {
         CommandeResponseDTO created = commandeService.create(dto);
@@ -58,6 +59,7 @@ public class CommandeController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CommandeResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody CommandeRequestDTO dto) {

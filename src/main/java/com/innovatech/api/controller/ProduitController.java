@@ -24,41 +24,62 @@ public class ProduitController {
 
     private final ProduitService produitService;
 
+    // -----------------------------------------
+    // READ — Tous les rôles authentifiés
+    // -----------------------------------------
+
     @GetMapping
-    @Operation(summary = "Liste tous les produits")
+    @Operation(summary = "Liste tous les produits accessibles par l'utilisateur")
     public ResponseEntity<List<ProduitResponseDTO>> getAll() {
         return ResponseEntity.ok(produitService.findAll());
     }
 
     @GetMapping("/actifs")
+    @Operation(summary = "Liste les produits actifs accessibles")
     public ResponseEntity<List<ProduitResponseDTO>> getActifs() {
         return ResponseEntity.ok(produitService.findAllActifs());
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Détail d'un produit")
     public ResponseEntity<ProduitResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(produitService.findById(id));
     }
 
     @GetMapping("/reference/{reference}")
+    @Operation(summary = "Détail d'un produit par référence")
     public ResponseEntity<ProduitResponseDTO> getByReference(@PathVariable String reference) {
         return ResponseEntity.ok(produitService.findByReference(reference));
     }
 
     @GetMapping("/search")
+    @Operation(summary = "Rechercher des produits")
     public ResponseEntity<List<ProduitResponseDTO>> search(@RequestParam("q") String query) {
         return ResponseEntity.ok(produitService.search(query));
     }
 
     @GetMapping("/stock-faible")
+    @Operation(summary = "Produits en stock faible")
     public ResponseEntity<List<ProduitResponseDTO>> getStockFaible(
             @RequestParam(value = "seuil", defaultValue = "10") Integer seuil) {
         return ResponseEntity.ok(produitService.findStockFaible(seuil));
     }
 
+    @GetMapping("/categorie/{categorieId}")
+    @Operation(summary = "Produits d'une catégorie (avec option descendants)")
+    public ResponseEntity<List<ProduitResponseDTO>> getByCategorie(
+            @PathVariable Long categorieId,
+            @RequestParam(value = "deep", defaultValue = "false") boolean deep) {
+        return ResponseEntity.ok(produitService.findByCategorie(categorieId, deep));
+    }
+
+    // -----------------------------------------
+    // CREATE — USER uniquement
+    // -----------------------------------------
 
     @PostMapping
-    @Operation(summary = "Créer un nouveau produit")
+    @Operation(summary = "Créer un nouveau produit (USER uniquement)")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ProduitResponseDTO> create(
             @Valid @RequestBody ProduitRequestDTO dto,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -68,34 +89,36 @@ public class ProduitController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // -----------------------------------------
+    // UPDATE — USER uniquement
+    // -----------------------------------------
+
     @PutMapping("/{id}")
+    @Operation(summary = "Modifier un produit (USER uniquement)")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ProduitResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody ProduitRequestDTO dto) {
         return ResponseEntity.ok(produitService.update(id, dto));
     }
 
+    // -----------------------------------------
+    // DELETE — USER uniquement
+    // -----------------------------------------
+
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un produit (ADMIN uniquement)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Supprimer un produit (USER uniquement)")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         produitService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/deactivate")
+    @Operation(summary = "Désactiver un produit (USER uniquement)")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         produitService.deactivate(id);
         return ResponseEntity.noContent().build();
-    }
-
-    /**
-     * Filtre par catégorie (avec option descendants).
-     */
-    @GetMapping("/categorie/{categorieId}")
-    public ResponseEntity<List<ProduitResponseDTO>> getByCategorie(
-            @PathVariable Long categorieId,
-            @RequestParam(value = "deep", defaultValue = "false") boolean deep) {
-        return ResponseEntity.ok(produitService.findByCategorie(categorieId, deep));
     }
 }
