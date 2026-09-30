@@ -5,9 +5,6 @@ import lombok.*;
 import java.time.LocalDateTime;
 import java.util.Set;
 
-/**
- * DTO de sortie pour un utilisateur (jamais de password).
- */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,6 +19,16 @@ public class UserResponseDTO {
     private String nom;
     private Set<String> roles;
     private boolean actif;
+
+    // Relation hiérarchique
+    private Long patronId;
+    private String patronEmail;
+    private String patronNom;
+    private String patronPrenom;
+
+    // Nombre d'employés (utile pour l'UI)
+    private Integer nbEmployes;
+
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
 }

@@ -10,15 +10,15 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-/**
- * Utilisateur de l'application (pour l'authentification).
- */
 @Entity
 @Table(
         name = "users",
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_user_email", columnNames = "email"),
                 @UniqueConstraint(name = "uk_user_username", columnNames = "username")
+        },
+        indexes = {
+                @Index(name = "idx_user_patron", columnList = "patron_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -27,7 +27,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "password")
+@ToString(exclude = {"password", "patron", "employes"})
 public class User {
 
     @Id
@@ -40,10 +40,6 @@ public class User {
     @Column(name = "email", nullable = false, length = 150)
     private String email;
 
-    /**
-     * Mot de passe hashé avec BCrypt.
-     * ⚠️ JAMAIS de mot de passe en clair.
-     */
     @Column(name = "password", nullable = false)
     private String password;
 
@@ -63,6 +59,30 @@ public class User {
     @Builder.Default
     private Set<Role> roles = new HashSet<>();
 
+    // -----------------------------------------
+    // Relation hiérarchique : SELLER → USER (patron)
+    // -----------------------------------------
+
+    /**
+     * Le patron de cet utilisateur (null pour ADMIN et USER, rempli pour SELLER).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "patron_id",
+            foreignKey = @ForeignKey(name = "fk_user_patron")
+    )
+    private User patron;
+
+    /**
+     * Les employés (SELLERs) rattachés à cet utilisateur.
+     */
+    @OneToMany(
+            mappedBy = "patron",
+            fetch = FetchType.LAZY
+    )
+    @Builder.Default
+    private Set<User> employes = new HashSet<>();
+
     @Column(name = "actif", nullable = false)
     @Builder.Default
     private boolean actif = true;
@@ -74,4 +94,18 @@ public class User {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    // -----------------------------------------
+    // Méthodes utilitaires
+    // -----------------------------------------
+
+    public void ajouterEmploye(User employe) {
+        employes.add(employe);
+        employe.setPatron(this);
+    }
+
+    public void retirerEmploye(User employe) {
+        employes.remove(employe);
+        employe.setPatron(null);
+    }
 }

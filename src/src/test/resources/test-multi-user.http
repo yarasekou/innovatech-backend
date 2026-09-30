@@ -5,9 +5,22 @@
 
 
 ### =========================================================
-### ÉTAPE 1 — Login Yara (ADMIN)
+### ÉTAPE 1 — AUTHENTIFICATION
 ### =========================================================
-# @name loginYara
+
+### 1.1 — Register Yara
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "yara",
+  "email": "yara@innovatech.com",
+  "password": "password123",
+  "prenom": "Yara",
+  "nom": "Sékou"
+}
+
+### 1.2 — Login Yara (capture token)
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
@@ -17,97 +30,381 @@ Content-Type: application/json
 }
 
 > {%
-    client.global.set("tokenAdmin", response.body.token);
-    client.log("✅ Token Yara capturé");
+    client.global.set("token", response.body.token);
+    client.log("✅ Token Yara : " + response.body.token.substring(0, 30) + "...");
 %}
 
-
-### =========================================================
-### ÉTAPE 2 — Register Oumar
-### =========================================================
-POST {{baseUrl}}/auth/register
+### 1.3 — Setup Admin
+POST {{baseUrl}}/auth/setup-admin
 Content-Type: application/json
+Authorization: Bearer {{token}}
 
 {
-  "username": "oumar",
-  "email": "oumar@innovatech.com",
-  "password": "password123",
-  "prenom": "Oumar",
-  "nom": "Diallo"
+  "secretKey": "innova-setup-key-2026"
 }
 
-
-### =========================================================
-### ÉTAPE 3 — Promouvoir Oumar en SELLER
-### =========================================================
-PATCH {{baseUrl}}/admin/users/2/promote-seller
-Authorization: Bearer {{tokenAdmin}}
-
-
-### =========================================================
-### ÉTAPE 4 — Login Oumar (capture token)
-### =========================================================
-# @name loginOumar
+### 1.4 — Re-login Yara (avec ROLE_ADMIN)
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
 
 {
-  "email": "oumar@innovatech.com",
+  "email": "yara@innovatech.com",
   "password": "password123"
 }
 
 > {%
-    client.global.set("tokenOumar", response.body.token);
-    client.log("✅ Token Oumar capturé");
+    client.global.set("token", response.body.token);
+    client.log("✅ Token ADMIN capturé");
 %}
 
+### Listes des users
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{token}}
+
+### User 1
+GET {{baseUrl}}/admin/users/1
+Authorization: Bearer {{token}}
+
 
 ### =========================================================
-### ÉTAPE 5 — Oumar crée SON iPhone 16 128G
+### ÉTAPE 2 — CATÉGORIES : ACCESSOIRE + TÉLÉPHONE
 ### =========================================================
+
+### 2.1 — Accessoire
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Accessoire", "slug": "accessoire", "description": "Tous les accessoires" }
+
+### 2.2 — Téléphone
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Téléphone", "slug": "telephone", "parentId": 1 }
+
+### 2.3 — Google Pixel
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Google Pixel", "slug": "google-pixel", "parentId": 2 }
+
+### 2.4 — 10 Pro
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "10 Pro", "slug": "google-pixel-10-pro", "parentId": 3 }
+
+### 2.5 — 128G (Pixel)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "128G", "slug": "google-pixel-10-pro-128g", "parentId": 4 }
+
+### 2.6 — 256G (Pixel)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "256G", "slug": "google-pixel-10-pro-256g", "parentId": 4 }
+
+### 2.7 — Apple
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Apple", "slug": "apple", "parentId": 2 }
+
+### 2.8 — iPhone 16
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "iPhone 16", "slug": "iphone-16", "parentId": 7 }
+
+### 2.9 — 128G (iPhone)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "128G", "slug": "iphone-16-128g", "parentId": 8 }
+
+### 2.10 — 256G (iPhone)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "256G", "slug": "iphone-16-256g", "parentId": 8 }
+
+### 2.11 — Samsung
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Samsung", "slug": "samsung", "parentId": 2 }
+
+### 2.12 — Galaxy A
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy A", "slug": "samsung-galaxy-a", "parentId": 11 }
+
+### 2.13 — Galaxy A14
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy A14", "slug": "samsung-galaxy-a14", "parentId": 12 }
+
+### 2.14 — Galaxy A54
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy A54", "slug": "samsung-galaxy-a54", "parentId": 12 }
+
+### 2.15 — Galaxy S24
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Galaxy S24", "slug": "samsung-galaxy-s24", "parentId": 11 }
+
+### 2.16 — 128G (S24)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "128G", "slug": "samsung-galaxy-s24-128g", "parentId": 15 }
+
+### 2.17 — 256G (S24)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "256G", "slug": "samsung-galaxy-s24-256g", "parentId": 15 }
+
+### 2.18 — Tecno
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Tecno", "slug": "tecno", "parentId": 2 }
+
+### 2.19 — Camon 12
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Camon 12", "slug": "tecno-camon-12", "parentId": 18 }
+
+### 2.20 — Camon 15
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Camon 15", "slug": "tecno-camon-15", "parentId": 18 }
+
+### 2.21 — Camon 20
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Camon 20", "slug": "tecno-camon-20", "parentId": 18 }
+
+
+### =========================================================
+### ÉTAPE 3 — CATÉGORIES : POWER BANK
+### =========================================================
+
+### 3.1 — Power Bank
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Power Bank", "slug": "power-bank", "parentId": 1 }
+
+### 3.2 — Anker
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Anker", "slug": "anker", "parentId": 22 }
+
+### 3.3 — PowerCore
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "PowerCore", "slug": "powercore", "parentId": 23 }
+
+### 3.4 — 10000 mAh (Anker)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "10000 mAh", "slug": "powercore-10000", "parentId": 24 }
+
+### 3.5 — 20000 mAh (Anker)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "20000 mAh", "slug": "powercore-20000", "parentId": 24 }
+
+### 3.6 — 30000 mAh (Anker)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "30000 mAh", "slug": "powercore-30000", "parentId": 24 }
+
+### 3.7 — Xiaomi
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Xiaomi", "slug": "xiaomi", "parentId": 22 }
+
+### 3.8 — Mi Power Bank 3
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "Mi Power Bank 3", "slug": "mi-power-bank-3", "parentId": 28 }
+
+### 3.9 — 10000 mAh (Mi)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "10000 mAh", "slug": "mi-power-bank-3-10000", "parentId": 29 }
+
+### 3.10 — 20000 mAh (Mi)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "nom": "20000 mAh", "slug": "mi-power-bank-3-20000", "parentId": 29 }
+
+
+### =========================================================
+### ÉTAPE 4 — PRODUITS
+### =========================================================
+
+### 4.1 — Google Pixel 10 Pro 128G
 POST {{baseUrl}}/produits
 Content-Type: application/json
-Authorization: Bearer {{tokenOumar}}
+Authorization: Bearer {{token}}
 
-{
-  "reference": "IPHONE16-128G",
-  "nom": "iPhone 16 128G (Oumar)",
-  "description": "iPhone 16 128G vendu par Oumar",
-  "prix": 1150000,
-  "prixAchat": 850000,
-  "stock": 20,
-  "categorieId": 9
-}
+{ "reference": "PIXEL-10P-128G", "nom": "Google Pixel 10 Pro 128G", "description": "Smartphone Google Pixel 10 Pro, 128 Go", "prix": 800000, "prixAchat": 600000, "stock": 10, "categorieId": 5 }
 
-
-### =========================================================
-### ÉTAPE 6 — Oumar crée SON Pixel 10 Pro 128G
-### =========================================================
+### 4.2 — Google Pixel 10 Pro 256G
 POST {{baseUrl}}/produits
 Content-Type: application/json
-Authorization: Bearer {{tokenOumar}}
+Authorization: Bearer {{token}}
 
-{
-  "reference": "PIXEL-10P-128G",
-  "nom": "Google Pixel 10 Pro 128G (Oumar)",
-  "description": "Pixel vendu par Oumar",
-  "prix": 820000,
-  "prixAchat": 620000,
-  "stock": 15,
-  "categorieId": 5
-}
+{ "reference": "PIXEL-10P-256G", "nom": "Google Pixel 10 Pro 256G", "description": "Smartphone Google Pixel 10 Pro, 256 Go", "prix": 900000, "prixAchat": 700000, "stock": 8, "categorieId": 6 }
 
+### 4.3 — iPhone 16 128G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
 
-### =========================================================
-### ÉTAPE 7 — Yara (ADMIN) voit TOUS les produits
-### =========================================================
-GET {{baseUrl}}/produits
-Authorization: Bearer {{tokenAdmin}}
+{ "reference": "IPHONE16-128G", "nom": "iPhone 16 128G", "description": "Smartphone Apple iPhone 16, 128 Go", "prix": 1200000, "prixAchat": 900000, "stock": 5, "categorieId": 9 }
 
+### 4.4 — iPhone 16 256G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
 
-### =========================================================
-### ÉTAPE 8 — Oumar (SELLER) voit tous les produits
-### (pour l'instant — isolation viendra à la Session 2)
-### =========================================================
-GET {{baseUrl}}/produits
-Authorization: Bearer {{tokenOumar}}
+{ "reference": "IPHONE16-256G", "nom": "iPhone 16 256G", "description": "Smartphone Apple iPhone 16, 256 Go", "prix": 1400000, "prixAchat": 1050000, "stock": 3, "categorieId": 10 }
+
+### 4.5 — Samsung Galaxy A14
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "SAM-A14", "nom": "Samsung Galaxy A14", "description": "Smartphone Samsung Galaxy A14", "prix": 120000, "prixAchat": 85000, "stock": 15, "categorieId": 13 }
+
+### 4.6 — Samsung Galaxy A54
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "SAM-A54", "nom": "Samsung Galaxy A54", "description": "Smartphone Samsung Galaxy A54", "prix": 250000, "prixAchat": 180000, "stock": 10, "categorieId": 14 }
+
+### 4.7 — Samsung Galaxy S24 128G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "SAM-S24-128G", "nom": "Samsung Galaxy S24 128G", "description": "Smartphone Samsung Galaxy S24, 128 Go", "prix": 750000, "prixAchat": 550000, "stock": 8, "categorieId": 16 }
+
+### 4.8 — Samsung Galaxy S24 256G
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "SAM-S24-256G", "nom": "Samsung Galaxy S24 256G", "description": "Smartphone Samsung Galaxy S24, 256 Go", "prix": 850000, "prixAchat": 620000, "stock": 5, "categorieId": 17 }
+
+### 4.9 — Tecno Camon 12
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "TECNO-CAMON12", "nom": "Tecno Camon 12", "description": "Smartphone Tecno Camon 12", "prix": 150000, "prixAchat": 100000, "stock": 20, "categorieId": 19 }
+
+### 4.10 — Tecno Camon 15
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "TECNO-CAMON15", "nom": "Tecno Camon 15", "description": "Smartphone Tecno Camon 15", "prix": 120000, "prixAchat": 85000, "stock": 25, "categorieId": 20 }
+
+### 4.11 — Tecno Camon 20
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "TECNO-CAMON20", "nom": "Tecno Camon 20", "description": "Smartphone Tecno Camon 20", "prix": 180000, "prixAchat": 130000, "stock": 20, "categorieId": 21 }
+
+### 4.12 — Anker PowerCore 10000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "ANKER-PC10000", "nom": "Anker PowerCore 10000 mAh", "description": "Batterie externe Anker 10000 mAh", "prix": 25000, "prixAchat": 18000, "stock": 50, "categorieId": 25 }
+
+### 4.13 — Anker PowerCore 20000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "ANKER-PC20000", "nom": "Anker PowerCore 20000 mAh", "description": "Batterie externe Anker 20000 mAh", "prix": 40000, "prixAchat": 30000, "stock": 30, "categorieId": 26 }
+
+### 4.14 — Anker PowerCore 30000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "ANKER-PC30000", "nom": "Anker PowerCore 30000 mAh", "description": "Batterie externe Anker 30000 mAh", "prix": 60000, "prixAchat": 45000, "stock": 15, "categorieId": 27 }
+
+### 4.15 — Xiaomi Mi Power Bank 3 10000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "XIAOMI-MPB3-10000", "nom": "Xiaomi Mi Power Bank 3 10000 mAh", "description": "Batterie externe Xiaomi 10000 mAh", "prix": 20000, "prixAchat": 14000, "stock": 40, "categorieId": 30 }
+
+### 4.16 — Xiaomi Mi Power Bank 3 20000
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{ "reference": "XIAOMI-MPB3-20000", "nom": "Xiaomi Mi Power Bank 3 20000 mAh", "description": "Batterie externe Xiaomi 20000 mAh", "prix": 35000, "prixAchat": 25000, "stock": 25, "categorieId": 31 }

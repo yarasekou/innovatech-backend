@@ -17,7 +17,7 @@ public class UserMapper {
                 .map(Enum::name)
                 .collect(Collectors.toSet());
 
-        return UserResponseDTO.builder()
+        UserResponseDTO.UserResponseDTOBuilder builder = UserResponseDTO.builder()
                 .id(entity.getId())
                 .username(entity.getUsername())
                 .email(entity.getEmail())
@@ -26,7 +26,23 @@ public class UserMapper {
                 .roles(roles)
                 .actif(entity.isActif())
                 .dateCreation(entity.getDateCreation())
-                .dateModification(entity.getDateModification())
-                .build();
+                .dateModification(entity.getDateModification());
+
+        // Patron
+        if (entity.getPatron() != null) {
+            builder.patronId(entity.getPatron().getId())
+                    .patronEmail(entity.getPatron().getEmail())
+                    .patronNom(entity.getPatron().getNom())
+                    .patronPrenom(entity.getPatron().getPrenom());
+        }
+
+        // Nombre d'employés
+        if (entity.getEmployes() != null) {
+            builder.nbEmployes(entity.getEmployes().size());
+        } else {
+            builder.nbEmployes(0);
+        }
+
+        return builder.build();
     }
 }
