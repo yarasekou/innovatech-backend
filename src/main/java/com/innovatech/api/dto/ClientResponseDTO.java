@@ -4,11 +4,6 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-/**
- * DTO de sortie pour un client.
- * <p>
- * Représente ce que l'API renvoie au client HTTP.
- */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,6 +21,13 @@ public class ClientResponseDTO {
     private String pays;
     private String siret;
     private boolean actif;
+
+    // Propriétaire
+    private Long userId;
+    private String userEmail;
+    private String userNom;
+    private String userPrenom;
+
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
 }

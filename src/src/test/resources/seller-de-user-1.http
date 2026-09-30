@@ -60,3 +60,7 @@ Content-Type: application/json
     client.global.set("tokenAli", response.body.token);
     client.log("✅ Token Ali capturé");
 %}
+
+### Voir tous les produits de Fatou
+GET {{baseUrl}}/produits
+Authorization: Bearer {{tokenAli}}

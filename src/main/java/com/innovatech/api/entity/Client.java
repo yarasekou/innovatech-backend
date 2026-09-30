@@ -8,20 +8,16 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
-/**
- * Entité représentant un client d'InnovaTech.
- * <p>
- * Une entreprise ou un particulier qui commande des services informatiques.
- */
 @Entity
 @Table(
         name = "clients",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_client_email", columnNames = "email")
+                @UniqueConstraint(name = "uk_client_email_user", columnNames = {"email", "user_id"})
         },
         indexes = {
                 @Index(name = "idx_client_nom", columnList = "nom"),
-                @Index(name = "idx_client_ville", columnList = "ville")
+                @Index(name = "idx_client_ville", columnList = "ville"),
+                @Index(name = "idx_client_user", columnList = "user_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -30,7 +26,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+@ToString(exclude = "user")
 public class Client {
 
     @Id
@@ -64,6 +60,16 @@ public class Client {
     @Column(name = "actif", nullable = false)
     @Builder.Default
     private boolean actif = true;
+
+    /**
+     * Propriétaire du client (le USER qui l'a créé).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "user_id",
+            foreignKey = @ForeignKey(name = "fk_client_user")
+    )
+    private User user;
 
     @CreatedDate
     @Column(name = "date_creation", nullable = false, updatable = false)

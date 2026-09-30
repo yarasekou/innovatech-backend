@@ -1,0 +1,33 @@
+### Variables
+@baseUrl = http://localhost:8080/api
+
+### Login Fatou
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@innovatech.com",
+  "password": "Fatou123"
+}
+
+> {%
+    client.global.set("tokenFatou", response.body.token);
+%}
+
+### Fatou crée 2 clients
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{tokenFatou}}
+
+{
+  "nom": "Diop",
+  "prenom": "Aminata",
+  "email": "aminata.diop@example.com",
+  "telephone": "771234567",
+  "ville": "Dakar",
+  "pays": "Sénégal"
+}
+
+### Fatou voit ses clients
+GET {{baseUrl}}/clients
+Authorization: Bearer {{tokenFatou}}

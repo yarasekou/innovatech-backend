@@ -4,6 +4,7 @@ import com.innovatech.api.dto.ProduitRequestDTO;
 import com.innovatech.api.dto.ProduitResponseDTO;
 import com.innovatech.api.entity.Categorie;
 import com.innovatech.api.entity.Produit;
+import com.innovatech.api.entity.Role;
 import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
@@ -36,16 +37,14 @@ public class ProduitService {
 
     public List<ProduitResponseDTO> findAll() {
         if (SecurityUtils.isAdmin()) {
-            log.debug("Admin : récupération de TOUS les produits");
             return produitRepository.findAllWithDetails()
                     .stream()
                     .map(produitMapper::toResponseDTO)
                     .toList();
         }
 
-        Long userId = getCurrentUserId();
-        log.debug("User {} : récupération de SES produits", userId);
-        return produitRepository.findByUserIdWithDetails(userId)
+        Long dataOwnerId = getCurrentDataOwnerId();
+        return produitRepository.findByUserIdWithDetails(dataOwnerId)
                 .stream()
                 .map(produitMapper::toResponseDTO)
                 .toList();
@@ -283,5 +282,35 @@ public class ProduitService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User introuvable avec l'email : " + email))
                 .getId();
+    }
+
+    /**
+     * Récupère l'ID du user dont on doit filtrer les données.
+     * <p>
+     * - ADMIN  : null (pas de filtre, voit tout)
+     * - USER   : son propre ID
+     * - SELLER : l'ID de son patron (il voit les données du patron)
+     */
+    private Long getCurrentDataOwnerId() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
+
+        // Si SELLER → retourner l'ID du patron
+        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+            if (user.getPatron() == null) {
+                throw new BusinessException(
+                        "Ce SELLER n'a pas de patron assigné");
+            }
+            return user.getPatron().getId();
+        }
+
+        // Sinon (USER) → son propre ID
+        return user.getId();
     }
 }

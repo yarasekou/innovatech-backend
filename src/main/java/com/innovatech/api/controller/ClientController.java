@@ -9,8 +9,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -22,37 +24,55 @@ public class ClientController {
 
     private final ClientService clientService;
 
+    // -----------------------------------------
+    // READ — Tous les rôles authentifiés
+    // -----------------------------------------
+
     @GetMapping
-    @Operation(summary = "Liste tous les clients")
+    @Operation(summary = "Liste tous les clients accessibles")
     public ResponseEntity<List<ClientResponseDTO>> getAll() {
         return ResponseEntity.ok(clientService.findAll());
     }
 
     @GetMapping("/actifs")
+    @Operation(summary = "Liste les clients actifs accessibles")
     public ResponseEntity<List<ClientResponseDTO>> getActifs() {
         return ResponseEntity.ok(clientService.findAllActifs());
     }
 
     @GetMapping("/{id}")
+    @Operation(summary = "Détail d'un client")
     public ResponseEntity<ClientResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(clientService.findById(id));
     }
 
     @GetMapping("/search")
+    @Operation(summary = "Rechercher des clients")
     public ResponseEntity<List<ClientResponseDTO>> search(@RequestParam("q") String query) {
         return ResponseEntity.ok(clientService.search(query));
     }
 
+    // -----------------------------------------
+    // CREATE — USER uniquement
+    // -----------------------------------------
+
     @PostMapping
-    @Operation(summary = "Créer un nouveau client")
+    @Operation(summary = "Créer un nouveau client (USER uniquement)")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ClientResponseDTO> create(
-            @Valid @RequestBody ClientRequestDTO dto) {
-        ClientResponseDTO created = clientService.create(dto);
+            @Valid @RequestBody ClientRequestDTO dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String userEmail = userDetails.getUsername();
+        ClientResponseDTO created = clientService.create(dto, userEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // -----------------------------------------
+    // UPDATE — USER uniquement
+    // -----------------------------------------
+
     @PutMapping("/{id}")
+    @Operation(summary = "Modifier un client (USER uniquement)")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ClientResponseDTO> update(
             @PathVariable Long id,
@@ -60,20 +80,23 @@ public class ClientController {
         return ResponseEntity.ok(clientService.update(id, dto));
     }
 
+    // -----------------------------------------
+    // DELETE — USER uniquement
+    // -----------------------------------------
+
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un client (ADMIN uniquement)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Supprimer un client (USER uniquement)")
+    @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         clientService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/deactivate")
+    @Operation(summary = "Désactiver un client (USER uniquement)")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         clientService.deactivate(id);
         return ResponseEntity.noContent().build();
     }
-
-
 }
