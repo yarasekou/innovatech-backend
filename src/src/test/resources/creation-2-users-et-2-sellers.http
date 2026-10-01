@@ -68,6 +68,10 @@ Content-Type: application/json
     client.log("✅ Token Fatou capturé");
 %}
 
+###
+GET {{baseUrl}}/paiements
+Authorization: Bearer {{tokenFatou}}
+
 ### 3.2 — Login Bouba
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -82,6 +86,9 @@ Content-Type: application/json
     client.log("✅ Token Bouba capturé");
 %}
 
+###
+GET {{baseUrl}}/paiements
+Authorization: Bearer {{tokenBouba}}
 
 ### =========================================================
 ### 4. FATOU CRÉE ALI (SELLER)

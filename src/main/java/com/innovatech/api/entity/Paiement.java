@@ -21,7 +21,8 @@ import java.time.LocalDateTime;
         indexes = {
                 @Index(name = "idx_paiement_commande", columnList = "commande_id"),
                 @Index(name = "idx_paiement_statut", columnList = "statut"),
-                @Index(name = "idx_paiement_date", columnList = "date_paiement")
+                @Index(name = "idx_paiement_date", columnList = "date_paiement"),
+                @Index(name = "idx_paiement_user", columnList = "user_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -30,7 +31,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "commande")
+@ToString(exclude = {"commande", "user"})
 public class Paiement {
 
     @Id
@@ -77,4 +78,11 @@ public class Paiement {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "user_id",
+            foreignKey = @ForeignKey(name = "fk_paiement_user")
+    )
+    private User user;
 }

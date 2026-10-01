@@ -28,4 +28,9 @@ public class PaiementResponseDTO {
     private LocalDateTime datePaiement;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
+
+    private Long userId;
+    private String userEmail;
+    private String userNom;
+    private String userPrenom;
 }

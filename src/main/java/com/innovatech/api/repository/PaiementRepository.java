@@ -43,10 +43,27 @@ public interface PaiementRepository extends JpaRepository<Paiement, Long> {
     @Query("SELECT p FROM Paiement p JOIN FETCH p.commande WHERE p.id = :id")
     Optional<Paiement> findByIdWithCommande(@Param("id") Long id);
 
-    @Query("SELECT p FROM Paiement p JOIN FETCH p.commande ORDER BY p.datePaiement DESC")
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commande " +
+            "LEFT JOIN FETCH p.user " +
+            "ORDER BY p.datePaiement DESC")
     List<Paiement> findAllWithCommande();
 
     @Query("SELECT p FROM Paiement p JOIN FETCH p.commande " +
             "WHERE p.commande.id = :commandeId ORDER BY p.datePaiement DESC")
     List<Paiement> findByCommandeIdWithCommande(@Param("commandeId") Long commandeId);
+
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commande c " +
+            "LEFT JOIN FETCH p.user " +
+            "WHERE p.user.id = :userId " +
+            "ORDER BY p.datePaiement DESC")
+    List<Paiement> findByUserIdWithDetails(@Param("userId") Long userId);
+
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commande c " +
+            "LEFT JOIN FETCH p.user " +
+            "WHERE p.id = :id AND p.user.id = :userId")
+    Optional<Paiement> findByIdAndUserIdWithDetails(@Param("id") Long id,
+                                                    @Param("userId") Long userId);
 }

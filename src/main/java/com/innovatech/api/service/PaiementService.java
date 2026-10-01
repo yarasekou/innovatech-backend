@@ -9,6 +9,8 @@ import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.PaiementMapper;
 import com.innovatech.api.repository.CommandeRepository;
 import com.innovatech.api.repository.PaiementRepository;
+import com.innovatech.api.repository.UserRepository;
+import com.innovatech.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -29,6 +31,7 @@ public class PaiementService {
     private final PaiementRepository paiementRepository;
     private final CommandeRepository commandeRepository;
     private final PaiementMapper paiementMapper;
+    private final UserRepository userRepository;
 
     /**
      * Transitions de statut autorisées.
@@ -45,7 +48,20 @@ public class PaiementService {
     // -----------------------------------------
 
     public List<PaiementResponseDTO> findAll() {
-        return paiementRepository.findAllWithCommande()
+        // SELLER : accès refusé
+        if (SecurityUtils.isSeller()) {
+            throw new BusinessException("Accès aux paiements non autorisé");
+        }
+
+        if (SecurityUtils.isAdmin()) {
+            return paiementRepository.findAllWithCommande()
+                    .stream()
+                    .map(paiementMapper::toResponseDTO)
+                    .toList();
+        }
+
+        Long dataOwnerId = getCurrentDataOwnerId();
+        return paiementRepository.findByUserIdWithDetails(dataOwnerId)
                 .stream()
                 .map(paiementMapper::toResponseDTO)
                 .toList();
@@ -89,16 +105,26 @@ public class PaiementService {
     // -----------------------------------------
 
     @Transactional
-    public PaiementResponseDTO create(PaiementRequestDTO dto) {
+    public PaiementResponseDTO create(PaiementRequestDTO dto, String userEmail) {
         Commande commande = commandeRepository.findById(dto.getCommandeId())
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", dto.getCommandeId()));
 
-        // 1. Vérifier que la commande n'est pas annulée/livrée
         if (commande.getStatut() == StatutCommande.ANNULEE) {
             throw new BusinessException("Impossible de payer une commande annulée");
         }
 
-        // 2. Vérifier que le montant ne dépasse pas le reste dû
+        // ⚠️ Vérifier que le user peut payer cette commande
+        User user = userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + userEmail));
+
+        // Un USER peut payer uniquement SES commandes
+        // Un SELLER peut payer les commandes de son patron
+        Long dataOwnerId = getCurrentDataOwnerId();
+        if (!commande.getVendeur().getId().equals(dataOwnerId)) {
+            throw new ResourceNotFoundException("Commande", dto.getCommandeId());
+        }
+
         ResteAPayerDTO solde = calculerReste(commande);
         if (dto.getMontant().compareTo(solde.getResteAPayer()) > 0) {
             throw new BusinessException(String.format(
@@ -106,19 +132,15 @@ public class PaiementService {
                     solde.getResteAPayer(), dto.getMontant()));
         }
 
-        // 3. Créer le paiement
-        Paiement paiement = paiementMapper.toEntity(dto, commande);
+        Paiement paiement = paiementMapper.toEntity(dto, commande, user);
         paiement.setNumero(genererNumero());
-        paiement.setStatut(StatutPaiement.VALIDE);   // validé par défaut
+        paiement.setStatut(StatutPaiement.VALIDE);
         paiement.setDatePaiement(LocalDateTime.now());
 
         Paiement saved = paiementRepository.save(paiement);
-        log.info("Paiement {} créé pour la commande {} (montant: {})",
-                saved.getNumero(), commande.getNumero(), saved.getMontant());
+        log.info("Paiement {} créé par {}", saved.getNumero(), userEmail);
 
-        // 4. Vérifier si la commande est maintenant totalement payée
         mettreAJourStatutCommandeSiPayee(commande);
-
         return paiementMapper.toResponseDTO(saved);
     }
 
@@ -221,5 +243,25 @@ public class PaiementService {
             // (on ne le fait pas car la commande peut déjà être traitée)
             // À voir selon le métier
         }
+    }
+
+    private Long getCurrentDataOwnerId() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
+
+        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+            if (user.getPatron() == null) {
+                throw new BusinessException("Ce SELLER n'a pas de patron assigné");
+            }
+            return user.getPatron().getId();
+        }
+
+        return user.getId();
     }
 }
