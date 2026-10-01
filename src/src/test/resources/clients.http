@@ -1,0 +1,162 @@
+### Variables
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. FATOU CRÉE SES CLIENTS
+### =========================================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenFatou", response.body.token);
+%}
+
+### 1.1 — Client 1 de Fatou
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{tokenFatou}}
+
+{
+  "nom": "Ndiaye",
+  "prenom": "Moussa",
+  "email": "moussa.ndiaye@example.com",
+  "telephone": "771111111",
+  "adresse": "Sacré-Cœur 3",
+  "ville": "Dakar",
+  "pays": "Sénégal"
+}
+
+### 1.2 — Client 2 de Fatou
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{tokenFatou}}
+
+{
+  "nom": "Diop",
+  "prenom": "Aminata",
+  "email": "aminata.diop@example.com",
+  "telephone": "772222222",
+  "adresse": "Point E",
+  "ville": "Dakar",
+  "pays": "Sénégal"
+}
+
+### 1.3 — Fatou voit ses clients
+GET {{baseUrl}}/clients
+Authorization: Bearer {{tokenFatou}}
+
+
+### =========================================================
+### 2. BOUBA CRÉE SES CLIENTS
+### =========================================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bouba@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenBouba", response.body.token);
+%}
+
+### 2.1 — Client 1 de Bouba
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{tokenBouba}}
+
+{
+  "nom": "Fall",
+  "prenom": "Ibrahima",
+  "email": "ibrahima.fall@example.com",
+  "telephone": "773333333",
+  "adresse": "Almadies",
+  "ville": "Dakar",
+  "pays": "Sénégal"
+}
+
+### 2.2 — Client 2 de Bouba
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{tokenBouba}}
+
+{
+  "nom": "Sow",
+  "prenom": "Coumba",
+  "email": "coumba.sow@example.com",
+  "telephone": "774444444",
+  "adresse": "Mermoz",
+  "ville": "Dakar",
+  "pays": "Sénégal"
+}
+
+### 2.3 — Bouba voit ses clients
+GET {{baseUrl}}/clients
+Authorization: Bearer {{tokenBouba}}
+
+
+### =========================================================
+### 3. VÉRIFICATIONS SELLER
+### =========================================================
+
+### 3.1 — Login Ali (SELLER de Fatou)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenAli", response.body.token);
+%}
+
+### 3.2 — Ali voit les clients de Fatou
+GET {{baseUrl}}/clients
+Authorization: Bearer {{tokenAli}}
+
+
+### 3.3 — Login Moussa (SELLER de Bouba)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "moussa@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenMoussa", response.body.token);
+%}
+
+### 3.4 — Moussa voit les clients de Bouba
+GET {{baseUrl}}/clients
+Authorization: Bearer {{tokenMoussa}}
+
+
+### =========================================================
+### 4. ADMIN VOIT TOUT
+### =========================================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenYara", response.body.token);
+%}
+
+### 4.1 — Yara voit TOUS les clients
+GET {{baseUrl}}/clients
+Authorization: Bearer {{tokenYara}}
