@@ -1,14 +1,25 @@
 package com.innovatech.api.mapper;
 
+import com.innovatech.api.dto.PhotoProduitDTO;
 import com.innovatech.api.dto.ProduitRequestDTO;
 import com.innovatech.api.dto.ProduitResponseDTO;
 import com.innovatech.api.entity.Categorie;
+import com.innovatech.api.entity.PhotoProduit;
 import com.innovatech.api.entity.Produit;
 import com.innovatech.api.entity.User;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 @Component
 public class ProduitMapper {
+
+    @Value("${server.servlet.context-path:/api}")
+    private String contextPath;
+
+    @Value("${file.upload-dir}")
+    private String uploadDir;
 
     public Produit toEntity(ProduitRequestDTO dto, Categorie categorie, User user) {
         if (dto == null) return null;
@@ -21,7 +32,7 @@ public class ProduitMapper {
                 .prixAchat(dto.getPrixAchat() != null ? dto.getPrixAchat() : java.math.BigDecimal.ZERO)
                 .stock(dto.getStock())
                 .categorie(categorie)
-                .user(user)   // ← NOUVEAU
+                .user(user)
                 .actif(dto.getActif() != null ? dto.getActif() : true)
                 .build();
     }
@@ -34,7 +45,6 @@ public class ProduitMapper {
         entity.setPrixAchat(dto.getPrixAchat() != null ? dto.getPrixAchat() : entity.getPrixAchat());
         entity.setStock(dto.getStock());
         entity.setCategorie(categorie);
-        // ⚠️ On ne touche PAS au user en UPDATE (il reste le créateur initial)
         entity.setActif(dto.getActif() != null ? dto.getActif() : entity.isActif());
     }
 
@@ -74,6 +84,41 @@ public class ProduitMapper {
                     .userPrenom(user.getPrenom());
         }
 
+        // Photos
+        if (entity.getPhotos() != null && !entity.getPhotos().isEmpty()) {
+            List<PhotoProduitDTO> photosDTO = entity.getPhotos().stream()
+                    .map(this::toPhotoDTO)
+                    .toList();
+
+            builder.photos(photosDTO)
+                    .nbPhotos(photosDTO.size())
+                    .photoPrincipale(photosDTO.stream()
+                            .filter(PhotoProduitDTO::isPrincipale)
+                            .findFirst()
+                            .map(PhotoProduitDTO::getUrl)
+                            .orElse(photosDTO.get(0).getUrl()));
+        } else {
+            builder.nbPhotos(0);
+        }
+
         return builder.build();
+    }
+
+    /**
+     * Convertit une photo en DTO.
+     */
+    private PhotoProduitDTO toPhotoDTO(PhotoProduit photo) {
+        return PhotoProduitDTO.builder()
+                .id(photo.getId())
+                .produitId(photo.getProduit() != null ? photo.getProduit().getId() : null)
+                .url(contextPath + "/" + uploadDir + "/" + photo.getNomFichier())
+                .nomFichier(photo.getNomFichier())
+                .titre(photo.getTitre())
+                .principale(photo.isPrincipale())
+                .ordre(photo.getOrdre())
+                .taille(photo.getTaille())
+                .typeMime(photo.getTypeMime())
+                .dateCreation(photo.getDateCreation())
+                .build();
     }
 }

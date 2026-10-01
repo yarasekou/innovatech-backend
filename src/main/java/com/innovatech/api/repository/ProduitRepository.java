@@ -54,7 +54,11 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
         """, nativeQuery = true)
     List<Produit> findByCategorieAndDescendants(@Param("categorieId") Long categorieId);
 
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user WHERE p.id = :id")
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.photos " +
+            "WHERE p.id = :id")
     Optional<Produit> findByIdWithDetails(@Param("id") Long id);
 
     @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user ORDER BY p.id")
@@ -82,4 +86,11 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
             "FROM Produit p WHERE p.reference = :reference AND p.user.id = :userId")
     boolean existsByReferenceAndUserId(@Param("reference") String reference,
                                        @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.photos " +
+            "WHERE p.id = :id")
+    Optional<Produit> findByIdWithDetailsAndPhotos(@Param("id") Long id);
 }

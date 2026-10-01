@@ -9,6 +9,8 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(
@@ -113,4 +115,13 @@ public class Produit {
                 .multiply(new BigDecimal("100"))
                 .divide(prixAchat, 2, RoundingMode.HALF_UP);
     }
+
+    @OneToMany(
+            mappedBy = "produit",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @Builder.Default
+    private List<PhotoProduit> photos = new ArrayList<>();
 }

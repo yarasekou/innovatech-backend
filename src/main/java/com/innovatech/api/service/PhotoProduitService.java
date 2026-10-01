@@ -6,7 +6,7 @@ import com.innovatech.api.entity.Produit;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.PhotoProduitMapper;
-import com.innovatech.api.repository.PhotoProduitRepository;
+import com.innovatech.api.repository.PhotoProduitRepository;   // ← ⚠️ CET IMPORT
 import com.innovatech.api.repository.ProduitRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

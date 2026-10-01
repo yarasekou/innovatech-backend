@@ -4,6 +4,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -31,11 +32,16 @@ public class ProduitResponseDTO {
     private String categorieChemin;
     private Integer categorieNiveau;
 
-    // Utilisateur créateur
+    // Propriétaire
     private Long userId;
     private String userEmail;
     private String userNom;
     private String userPrenom;
+
+    // Photos
+    private List<PhotoProduitDTO> photos;
+    private String photoPrincipale;
+    private Integer nbPhotos;
 
     private boolean actif;
     private LocalDateTime dateCreation;
