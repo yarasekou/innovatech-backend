@@ -9,6 +9,7 @@ import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.CommandeMapper;
 import com.innovatech.api.repository.ClientRepository;
 import com.innovatech.api.repository.CommandeRepository;
+import com.innovatech.api.repository.PhotoProduitRepository;
 import com.innovatech.api.repository.ProduitRepository;
 import com.innovatech.api.repository.UserRepository;
 import com.innovatech.api.security.SecurityUtils;
@@ -34,6 +35,7 @@ public class CommandeService {
     private final ClientRepository clientRepository;
     private final ProduitRepository produitRepository;
     private final UserRepository userRepository;
+    private final PhotoProduitRepository photoProduitRepository;
     private final CommandeMapper commandeMapper;
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
@@ -112,7 +114,7 @@ public class CommandeService {
     }
 
     // -----------------------------------------
-    // CREATE — associe le vendeur (USER)
+    // CREATE
     // -----------------------------------------
 
     @Transactional
@@ -140,6 +142,15 @@ public class CommandeService {
 
             if (!produit.isActif()) {
                 throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
+            }
+
+            // ⚠️ RÈGLE MÉTIER : le produit doit avoir au moins une photo
+            long nbPhotos = photoProduitRepository.countByProduitId(produit.getId());
+            if (nbPhotos == 0) {
+                throw new BusinessException(String.format(
+                        "Le produit '%s' n'a pas de photo. " +
+                                "Ajoutez au moins une photo avant de le vendre.",
+                        produit.getNom()));
             }
 
             if (produit.getStock() < ligneDTO.getQuantite()) {
@@ -196,6 +207,19 @@ public class CommandeService {
         for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
             Produit produit = produitRepository.findById(ligneDTO.getProduitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
+
+            if (!produit.isActif()) {
+                throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
+            }
+
+            // ⚠️ RÈGLE MÉTIER : le produit doit avoir au moins une photo
+            long nbPhotos = photoProduitRepository.countByProduitId(produit.getId());
+            if (nbPhotos == 0) {
+                throw new BusinessException(String.format(
+                        "Le produit '%s' n'a pas de photo. " +
+                                "Ajoutez au moins une photo avant de le vendre.",
+                        produit.getNom()));
+            }
 
             if (produit.getStock() < ligneDTO.getQuantite()) {
                 throw new BusinessException(String.format(
@@ -331,13 +355,6 @@ public class CommandeService {
         }
     }
 
-    /**
-     * Retourne l'ID du propriétaire des données à filtrer.
-     * <p>
-     * - ADMIN  : ne devrait pas arriver ici
-     * - USER   : son ID
-     * - SELLER : l'ID de son patron
-     */
     private Long getCurrentDataOwnerId() {
         String email = SecurityUtils.getCurrentUserEmail();
         if (email == null) {
