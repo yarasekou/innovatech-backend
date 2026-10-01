@@ -21,7 +21,8 @@ import java.util.List;
         indexes = {
                 @Index(name = "idx_commande_achat_fournisseur", columnList = "fournisseur_id"),
                 @Index(name = "idx_commande_achat_statut", columnList = "statut"),
-                @Index(name = "idx_commande_achat_date", columnList = "date_commande")
+                @Index(name = "idx_commande_achat_date", columnList = "date_commande"),
+                @Index(name = "idx_commande_achat_acheteur", columnList = "acheteur_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -30,7 +31,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"fournisseur", "lignes"})
+@ToString(exclude = {"fournisseur", "lignes", "acheteur"})
 public class CommandeAchat {
 
     @Id
@@ -91,6 +92,13 @@ public class CommandeAchat {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "acheteur_id",
+            foreignKey = @ForeignKey(name = "fk_commande_achat_acheteur")
+    )
+    private User acheteur;
 
     // -----------------------------------------
     // Méthodes utilitaires

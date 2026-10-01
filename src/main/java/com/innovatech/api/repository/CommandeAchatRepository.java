@@ -28,6 +28,7 @@ public interface CommandeAchatRepository extends JpaRepository<CommandeAchat, Lo
 
     @Query("SELECT DISTINCT c FROM CommandeAchat c " +
             "JOIN FETCH c.fournisseur " +
+            "LEFT JOIN FETCH c.acheteur " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
             "WHERE c.id = :id")
@@ -35,6 +36,7 @@ public interface CommandeAchatRepository extends JpaRepository<CommandeAchat, Lo
 
     @Query("SELECT DISTINCT c FROM CommandeAchat c " +
             "JOIN FETCH c.fournisseur " +
+            "LEFT JOIN FETCH c.acheteur " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
             "ORDER BY c.dateCommande DESC")
@@ -61,4 +63,31 @@ public interface CommandeAchatRepository extends JpaRepository<CommandeAchat, Lo
             "LEFT JOIN FETCH l.produit " +
             "WHERE c.statut = :statut")
     List<CommandeAchat> findByStatutWithDetails(@Param("statut") StatutAchat statut);
+
+    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
+            "JOIN FETCH c.fournisseur " +
+            "LEFT JOIN FETCH c.acheteur " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.acheteur.id = :acheteurId " +
+            "ORDER BY c.dateCommande DESC")
+    List<CommandeAchat> findByAcheteurIdWithDetails(@Param("acheteurId") Long acheteurId);
+
+    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
+            "JOIN FETCH c.fournisseur " +
+            "LEFT JOIN FETCH c.acheteur " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.id = :id AND c.acheteur.id = :acheteurId")
+    Optional<CommandeAchat> findByIdAndAcheteurIdWithDetails(@Param("id") Long id,
+                                                             @Param("acheteurId") Long acheteurId);
+
+    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
+            "JOIN FETCH c.fournisseur " +
+            "LEFT JOIN FETCH c.acheteur " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.statut = :statut AND c.acheteur.id = :acheteurId")
+    List<CommandeAchat> findByStatutAndAcheteurIdWithDetails(@Param("statut") StatutAchat statut,
+                                                             @Param("acheteurId") Long acheteurId);
 }

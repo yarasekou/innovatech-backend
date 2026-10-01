@@ -10,6 +10,8 @@ import com.innovatech.api.mapper.CommandeAchatMapper;
 import com.innovatech.api.repository.CommandeAchatRepository;
 import com.innovatech.api.repository.FournisseurRepository;
 import com.innovatech.api.repository.ProduitRepository;
+import com.innovatech.api.repository.UserRepository;
+import com.innovatech.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +33,7 @@ public class CommandeAchatService {
     private final CommandeAchatRepository commandeAchatRepository;
     private final FournisseurRepository fournisseurRepository;
     private final ProduitRepository produitRepository;
+    private final UserRepository userRepository;
     private final CommandeAchatMapper commandeAchatMapper;
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
@@ -41,7 +44,7 @@ public class CommandeAchatService {
             "COMMANDEE->ANNULEE",
             "RECU_PARTIEL->RECUE",
             "RECU_PARTIEL->ANNULEE",
-            "RECUE->ANNULEE"    // ⚠️ NOUVEAU : on peut annuler une commande reçue
+            "RECUE->ANNULEE"
     );
 
     // -----------------------------------------
@@ -49,34 +52,89 @@ public class CommandeAchatService {
     // -----------------------------------------
 
     public List<CommandeAchatResponseDTO> findAll() {
-        return commandeAchatRepository.findAllWithDetails()
-                .stream().map(commandeAchatMapper::toResponseDTO).toList();
+        if (SecurityUtils.isAdmin()) {
+            return commandeAchatRepository.findAllWithDetails()
+                    .stream()
+                    .map(commandeAchatMapper::toResponseDTO)
+                    .toList();
+        }
+
+        Long dataOwnerId = getCurrentDataOwnerId();
+        return commandeAchatRepository.findByAcheteurIdWithDetails(dataOwnerId)
+                .stream()
+                .map(commandeAchatMapper::toResponseDTO)
+                .toList();
     }
 
     public CommandeAchatResponseDTO findById(Long id) {
-        CommandeAchat c = commandeAchatRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
-        return commandeAchatMapper.toResponseDTO(c);
+        CommandeAchat commande;
+
+        if (SecurityUtils.isAdmin()) {
+            commande = commandeAchatRepository.findByIdWithDetails(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            commande = commandeAchatRepository.findByIdAndAcheteurIdWithDetails(id, dataOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        }
+
+        return commandeAchatMapper.toResponseDTO(commande);
     }
 
     public CommandeAchatResponseDTO findByNumero(String numero) {
-        CommandeAchat c = commandeAchatRepository.findByNumeroWithDetails(numero)
+        CommandeAchat commande = commandeAchatRepository.findByNumeroWithDetails(numero)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Commande d'achat " + numero + " introuvable"));
-        return commandeAchatMapper.toResponseDTO(c);
+
+        // Vérifier l'accès (sauf admin)
+        if (!SecurityUtils.isAdmin()) {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            if (commande.getAcheteur() == null
+                    || !commande.getAcheteur().getId().equals(dataOwnerId)) {
+                throw new ResourceNotFoundException(
+                        "Commande d'achat " + numero + " introuvable");
+            }
+        }
+
+        return commandeAchatMapper.toResponseDTO(commande);
     }
 
     public List<CommandeAchatResponseDTO> findByFournisseur(Long fournisseurId) {
         if (!fournisseurRepository.existsById(fournisseurId)) {
             throw new ResourceNotFoundException("Fournisseur", fournisseurId);
         }
-        return commandeAchatRepository.findByFournisseurIdWithDetails(fournisseurId)
-                .stream().map(commandeAchatMapper::toResponseDTO).toList();
+
+        List<CommandeAchat> commandes;
+
+        if (SecurityUtils.isAdmin()) {
+            commandes = commandeAchatRepository.findByFournisseurIdWithDetails(fournisseurId);
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            commandes = commandeAchatRepository.findByFournisseurIdWithDetails(fournisseurId)
+                    .stream()
+                    .filter(c -> c.getAcheteur() != null
+                            && c.getAcheteur().getId().equals(dataOwnerId))
+                    .toList();
+        }
+
+        return commandes.stream()
+                .map(commandeAchatMapper::toResponseDTO)
+                .toList();
     }
 
     public List<CommandeAchatResponseDTO> findByStatut(StatutAchat statut) {
-        return commandeAchatRepository.findByStatutWithDetails(statut)
-                .stream().map(commandeAchatMapper::toResponseDTO).toList();
+        if (SecurityUtils.isAdmin()) {
+            return commandeAchatRepository.findByStatutWithDetails(statut)
+                    .stream()
+                    .map(commandeAchatMapper::toResponseDTO)
+                    .toList();
+        }
+
+        Long dataOwnerId = getCurrentDataOwnerId();
+        return commandeAchatRepository.findByStatutAndAcheteurIdWithDetails(statut, dataOwnerId)
+                .stream()
+                .map(commandeAchatMapper::toResponseDTO)
+                .toList();
     }
 
     // -----------------------------------------
@@ -84,7 +142,7 @@ public class CommandeAchatService {
     // -----------------------------------------
 
     @Transactional
-    public CommandeAchatResponseDTO create(CommandeAchatRequestDTO dto) {
+    public CommandeAchatResponseDTO create(CommandeAchatRequestDTO dto, String acheteurEmail) {
         Fournisseur fournisseur = fournisseurRepository.findById(dto.getFournisseurId())
                 .orElseThrow(() -> new ResourceNotFoundException("Fournisseur", dto.getFournisseurId()));
 
@@ -92,7 +150,11 @@ public class CommandeAchatService {
             throw new BusinessException("Impossible de commander à un fournisseur inactif");
         }
 
-        CommandeAchat commande = commandeAchatMapper.toEntity(dto, fournisseur);
+        User acheteur = userRepository.findByEmail(acheteurEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + acheteurEmail));
+
+        CommandeAchat commande = commandeAchatMapper.toEntity(dto, fournisseur, acheteur);
         commande.setNumero(genererNumero());
         commande.setStatut(StatutAchat.EN_ATTENTE);
         commande.setDateCommande(LocalDateTime.now());
@@ -122,7 +184,7 @@ public class CommandeAchatService {
         recalculerTotaux(commande);
 
         CommandeAchat saved = commandeAchatRepository.save(commande);
-        log.info("Commande d'achat {} créée pour {}", saved.getNumero(), fournisseur.getNom());
+        log.info("CommandeAchat {} créée par {}", saved.getNumero(), acheteurEmail);
         return commandeAchatMapper.toResponseDTO(saved);
     }
 
@@ -132,8 +194,16 @@ public class CommandeAchatService {
 
     @Transactional
     public CommandeAchatResponseDTO update(Long id, CommandeAchatRequestDTO dto) {
-        CommandeAchat existing = commandeAchatRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        CommandeAchat existing;
+
+        if (SecurityUtils.isAdmin()) {
+            existing = commandeAchatRepository.findByIdWithDetails(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            existing = commandeAchatRepository.findByIdAndAcheteurIdWithDetails(id, dataOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        }
 
         if (existing.getStatut() != StatutAchat.EN_ATTENTE) {
             throw new BusinessException("Seule une commande EN_ATTENTE peut être modifiée");
@@ -175,8 +245,16 @@ public class CommandeAchatService {
 
     @Transactional
     public CommandeAchatResponseDTO changerStatut(Long id, StatutAchat nouveauStatut) {
-        CommandeAchat commande = commandeAchatRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        CommandeAchat commande;
+
+        if (SecurityUtils.isAdmin()) {
+            commande = commandeAchatRepository.findByIdWithDetails(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            commande = commandeAchatRepository.findByIdAndAcheteurIdWithDetails(id, dataOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        }
 
         StatutAchat actuel = commande.getStatut();
         String transition = actuel.name() + "->" + nouveauStatut.name();
@@ -186,12 +264,12 @@ public class CommandeAchatService {
                     "Transition de statut invalide : %s → %s", actuel, nouveauStatut));
         }
 
-        // ⚠️ À la RÉCEPTION → augmenter le stock
+        // À la RÉCEPTION → augmenter le stock
         if (nouveauStatut == StatutAchat.RECUE) {
             augmenterStock(commande);
         }
 
-        // ⚠️ À l'ANNULATION après réception → restituer le stock
+        // À l'ANNULATION après réception → restituer le stock
         if (nouveauStatut == StatutAchat.ANNULEE
                 && (actuel == StatutAchat.RECUE || actuel == StatutAchat.RECU_PARTIEL)) {
             restituerStock(commande);
@@ -204,16 +282,22 @@ public class CommandeAchatService {
     }
 
     // -----------------------------------------
-    // DELETE (avec restitution du stock si nécessaire)
+    // DELETE
     // -----------------------------------------
 
     @Transactional
     public void delete(Long id) {
-        CommandeAchat commande = commandeAchatRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        CommandeAchat commande;
 
-        // Si la commande a été reçue (totalement ou partiellement),
-        // il faut restituer le stock avant suppression.
+        if (SecurityUtils.isAdmin()) {
+            commande = commandeAchatRepository.findByIdWithDetails(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            commande = commandeAchatRepository.findByIdAndAcheteurIdWithDetails(id, dataOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", id));
+        }
+
         if (commande.getStatut() == StatutAchat.RECUE
                 || commande.getStatut() == StatutAchat.RECU_PARTIEL) {
             restituerStock(commande);
@@ -252,9 +336,6 @@ public class CommandeAchatService {
         commande.setTotalTTC(totalTTC);
     }
 
-    /**
-     * Augmente le stock de chaque produit à la RÉCEPTION.
-     */
     private void augmenterStock(CommandeAchat commande) {
         for (LigneCommandeAchat ligne : commande.getLignes()) {
             Produit produit = ligne.getProduit();
@@ -266,10 +347,6 @@ public class CommandeAchatService {
         }
     }
 
-    /**
-     * Diminue le stock (inverse de l'augmentation à la réception).
-     * Bloque si le stock deviendrait négatif (marchandise déjà vendue).
-     */
     private void restituerStock(CommandeAchat commande) {
         for (LigneCommandeAchat ligne : commande.getLignes()) {
             Produit produit = ligne.getProduit();
@@ -278,8 +355,8 @@ public class CommandeAchatService {
 
             if (nouveauStock < 0) {
                 throw new BusinessException(String.format(
-                        "Impossible de restituer le stock : %s deviendrait négatif (%d → %d). "
-                                + "La marchandise a peut-être déjà été vendue.",
+                        "Impossible de restituer le stock : %s deviendrait négatif (%d → %d). " +
+                                "La marchandise a peut-être déjà été vendue.",
                         produit.getNom(), ancienStock, nouveauStock));
             }
 
@@ -288,5 +365,31 @@ public class CommandeAchatService {
             log.info("Produit {} : stock {} → {} (-{})",
                     produit.getNom(), ancienStock, nouveauStock, ligne.getQuantite());
         }
+    }
+
+    /**
+     * Retourne l'ID du propriétaire des données.
+     * - ADMIN : ne devrait pas arriver ici
+     * - USER : son ID
+     * - SELLER : l'ID de son patron
+     */
+    private Long getCurrentDataOwnerId() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
+
+        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+            if (user.getPatron() == null) {
+                throw new BusinessException("Ce SELLER n'a pas de patron assigné");
+            }
+            return user.getPatron().getId();
+        }
+
+        return user.getId();
     }
 }

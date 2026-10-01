@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -50,11 +52,13 @@ public class CommandeAchatController {
     }
 
     @PostMapping
-    @Operation(summary = "Créer une nouvelle commande d'achat")
     @PreAuthorize("hasRole('USER')")
+    @Operation(summary = "Créer une nouvelle commande d'achat")
     public ResponseEntity<CommandeAchatResponseDTO> create(
-            @Valid @RequestBody CommandeAchatRequestDTO dto) {
-        CommandeAchatResponseDTO created = commandeAchatService.create(dto);
+            @Valid @RequestBody CommandeAchatRequestDTO dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String acheteurEmail = userDetails.getUsername();
+        CommandeAchatResponseDTO created = commandeAchatService.create(dto, acheteurEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 

@@ -17,6 +17,23 @@ Content-Type: application/json
     client.global.set("tokenFatou", response.body.token);
 %}
 
+### Une commande achat
+POST {{baseUrl}}/commandes-achat
+Content-Type: application/json
+Authorization: Bearer {{tokenFatou}}
+
+{
+  "fournisseurId": 1,
+  "tvaPercent": 18,
+  "notes": "Réapprovisionnement chargeurs",
+  "lignes": [
+    { "produitId": 1, "quantite": 20 }
+  ]
+}
+
+### Toutes commandes achat
+GET {{baseUrl}}/commandes-achat
+Authorization: Bearer {{tokenFatou}}
 
 ### 1.1 — Fatou crée une commande pour son client Moussa Ndiaye (id=1)
 POST {{baseUrl}}/commandes
@@ -33,6 +50,8 @@ Authorization: Bearer {{tokenFatou}}
     { "produitId": 2, "quantite": 5 }
   ]
 }
+
+
 
 ### 1.2 — Fatou voit ses commandes
 GET {{baseUrl}}/commandes
@@ -60,6 +79,10 @@ Content-Type: application/json
 GET {{baseUrl}}/commandes
 Authorization: Bearer {{tokenBouba}}
 
+
+### Toutes les commandes achat
+GET {{baseUrl}}/commandes-achat
+Authorization: Bearer {{tokenBouba}}
 
 ### 2.2 — Ali (SELLER de Fatou) voit les commandes de Fatou
 POST {{baseUrl}}/auth/login

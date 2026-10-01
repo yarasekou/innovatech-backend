@@ -335,3 +335,22 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 { "nom": "Développement d'applications", "slug": "developpement-applications", "parentId": 29 }
+
+
+### Un fournisseur
+
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{tokenYara}}
+
+{
+  "code": "FOUR-001",
+  "nom": "Samsung France",
+  "email": "contact@samsung.fr",
+  "pays": "France",
+  "contactNom": "Jean Dupont"
+}
+
+###
+GET {{baseUrl}}/commandes-achat
+Authorization: Bearer {{tokenYara}}

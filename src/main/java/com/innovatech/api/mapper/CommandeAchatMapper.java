@@ -5,17 +5,19 @@ import com.innovatech.api.entity.CommandeAchat;
 import com.innovatech.api.entity.Fournisseur;
 import com.innovatech.api.entity.LigneCommandeAchat;
 import org.springframework.stereotype.Component;
+import com.innovatech.api.entity.User;
 
 import java.util.List;
 
 @Component
 public class CommandeAchatMapper {
 
-    public CommandeAchat toEntity(CommandeAchatRequestDTO dto, Fournisseur fournisseur) {
+    public CommandeAchat toEntity(CommandeAchatRequestDTO dto, Fournisseur fournisseur, User acheteur) {
         if (dto == null) return null;
 
         return CommandeAchat.builder()
                 .fournisseur(fournisseur)
+                .acheteur(acheteur)
                 .tvaPercent(dto.getTvaPercent() != null ? dto.getTvaPercent() : new java.math.BigDecimal("18.00"))
                 .notes(dto.getNotes())
                 .dateReceptionPrevue(dto.getDateReceptionPrevue())
@@ -32,7 +34,7 @@ public class CommandeAchatMapper {
     public CommandeAchatResponseDTO toResponseDTO(CommandeAchat entity) {
         if (entity == null) return null;
 
-        return CommandeAchatResponseDTO.builder()
+        CommandeAchatResponseDTO.CommandeAchatResponseDTOBuilder builder = CommandeAchatResponseDTO.builder()
                 .id(entity.getId())
                 .numero(entity.getNumero())
                 .fournisseur(toFournisseurSummary(entity.getFournisseur()))
@@ -46,10 +48,17 @@ public class CommandeAchatMapper {
                 .dateReceptionPrevue(entity.getDateReceptionPrevue())
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification())
-                .lignes(toLignesDTO(entity.getLignes()))
-                .build();
-    }
+                .lignes(toLignesDTO(entity.getLignes()));
 
+        if (entity.getAcheteur() != null) {
+            builder.acheteurId(entity.getAcheteur().getId())
+                    .acheteurEmail(entity.getAcheteur().getEmail())
+                    .acheteurNom(entity.getAcheteur().getNom())
+                    .acheteurPrenom(entity.getAcheteur().getPrenom());
+        }
+
+        return builder.build();
+    }
     private FournisseurSummaryDTO toFournisseurSummary(Fournisseur f) {
         if (f == null) return null;
         return FournisseurSummaryDTO.builder()
