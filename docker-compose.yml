@@ -46,13 +46,23 @@ services:
       JWT_EXPIRATION: 86400000
     ports:
       - "8080:8080"
+    volumes:
+      - uploads-data:/app/uploads   # ← NOUVEAU : persistance des photos
     networks:
       - innova-network
 
+# =====================================================
+# Volumes (persistance des données)
+# =====================================================
 volumes:
   mysql-data:
     driver: local
+  uploads-data:                     # ← NOUVEAU : photos des produits
+    driver: local
 
+# =====================================================
+# Réseau interne
+# =====================================================
 networks:
   innova-network:
     driver: bridge

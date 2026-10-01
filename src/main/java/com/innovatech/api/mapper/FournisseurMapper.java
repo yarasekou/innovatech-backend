@@ -4,11 +4,13 @@ import com.innovatech.api.dto.FournisseurRequestDTO;
 import com.innovatech.api.dto.FournisseurResponseDTO;
 import com.innovatech.api.entity.Fournisseur;
 import org.springframework.stereotype.Component;
+import com.innovatech.api.entity.User;
+
 
 @Component
 public class FournisseurMapper {
 
-    public Fournisseur toEntity(FournisseurRequestDTO dto) {
+    public Fournisseur toEntity(FournisseurRequestDTO dto, User user) {
         if (dto == null) return null;
 
         return Fournisseur.builder()
@@ -21,7 +23,8 @@ public class FournisseurMapper {
                 .pays(dto.getPays())
                 .siret(dto.getSiret())
                 .contactNom(dto.getContactNom())
-                .actif(dto.getActif() == null || dto.getActif())
+                .actif(dto.getActif() != null ? dto.getActif() : true)
+                .user(user)
                 .build();
     }
 
@@ -36,12 +39,13 @@ public class FournisseurMapper {
         entity.setSiret(dto.getSiret());
         entity.setContactNom(dto.getContactNom());
         entity.setActif(dto.getActif() != null ? dto.getActif() : entity.isActif());
+        // user inchangé
     }
 
     public FournisseurResponseDTO toResponseDTO(Fournisseur entity) {
         if (entity == null) return null;
 
-        return FournisseurResponseDTO.builder()
+        FournisseurResponseDTO.FournisseurResponseDTOBuilder builder = FournisseurResponseDTO.builder()
                 .id(entity.getId())
                 .code(entity.getCode())
                 .nom(entity.getNom())
@@ -54,7 +58,15 @@ public class FournisseurMapper {
                 .contactNom(entity.getContactNom())
                 .actif(entity.isActif())
                 .dateCreation(entity.getDateCreation())
-                .dateModification(entity.getDateModification())
-                .build();
+                .dateModification(entity.getDateModification());
+
+        if (entity.getUser() != null) {
+            builder.userId(entity.getUser().getId())
+                    .userEmail(entity.getUser().getEmail())
+                    .userNom(entity.getUser().getNom())
+                    .userPrenom(entity.getUser().getPrenom());
+        }
+
+        return builder.build();
     }
 }

@@ -15,12 +15,13 @@ import java.time.LocalDateTime;
 @Table(
         name = "fournisseurs",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_fournisseur_code", columnNames = "code"),
-                @UniqueConstraint(name = "uk_fournisseur_email", columnNames = "email")
+                @UniqueConstraint(name = "uk_fournisseur_code_user", columnNames = {"code", "user_id"}),
+                @UniqueConstraint(name = "uk_fournisseur_email_user", columnNames = {"email", "user_id"})
         },
         indexes = {
                 @Index(name = "idx_fournisseur_nom", columnList = "nom"),
-                @Index(name = "idx_fournisseur_pays", columnList = "pays")
+                @Index(name = "idx_fournisseur_pays", columnList = "pays"),
+                @Index(name = "idx_fournisseur_user", columnList = "user_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -29,7 +30,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString
+@ToString(exclude = "user")
 public class Fournisseur {
 
     @Id
@@ -80,4 +81,11 @@ public class Fournisseur {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "user_id",
+            foreignKey = @ForeignKey(name = "fk_fournisseur_user")
+    )
+    private User user;
 }
