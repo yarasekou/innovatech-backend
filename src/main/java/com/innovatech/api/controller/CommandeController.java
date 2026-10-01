@@ -11,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -53,8 +55,10 @@ public class CommandeController {
     @Operation(summary = "Créer une nouvelle commande")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<CommandeResponseDTO> create(
-            @Valid @RequestBody CommandeRequestDTO dto) {
-        CommandeResponseDTO created = commandeService.create(dto);
+            @Valid @RequestBody CommandeRequestDTO dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        String vendeurEmail = userDetails.getUsername();
+        CommandeResponseDTO created = commandeService.create(dto, vendeurEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -67,6 +71,7 @@ public class CommandeController {
     }
 
     @PatchMapping("/{id}/statut/{nouveauStatut}")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER', 'ADMIN')")
     public ResponseEntity<CommandeResponseDTO> changerStatut(
             @PathVariable Long id,
             @PathVariable StatutCommande nouveauStatut) {

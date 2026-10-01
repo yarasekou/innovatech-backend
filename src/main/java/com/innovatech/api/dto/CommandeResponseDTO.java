@@ -31,4 +31,10 @@ public class CommandeResponseDTO {
 
     // ⚠️ AJOUTER CETTE LIGNE
     private List<LigneCommandeResponseDTO> lignes;
+
+    // Vendeur
+    private Long vendeurId;
+    private String vendeurEmail;
+    private String vendeurNom;
+    private String vendeurPrenom;
 }

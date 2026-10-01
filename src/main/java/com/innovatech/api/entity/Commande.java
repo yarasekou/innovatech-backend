@@ -12,9 +12,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Entité représentant une commande passée par un client.
- */
 @Entity
 @Table(
         name = "commandes",
@@ -24,7 +21,8 @@ import java.util.List;
         indexes = {
                 @Index(name = "idx_commande_client", columnList = "client_id"),
                 @Index(name = "idx_commande_statut", columnList = "statut"),
-                @Index(name = "idx_commande_date", columnList = "date_commande")
+                @Index(name = "idx_commande_date", columnList = "date_commande"),
+                @Index(name = "idx_commande_vendeur", columnList = "vendeur_id")   // ← NOUVEAU
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -33,7 +31,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"client", "lignes"})
+@ToString(exclude = {"client", "vendeur", "lignes"})
 public class Commande {
 
     @Id
@@ -43,12 +41,6 @@ public class Commande {
     @Column(name = "numero", nullable = false, length = 30)
     private String numero;
 
-    /**
-     * Client propriétaire de la commande.
-     * <p>
-     * LAZY : on ne charge pas le client systématiquement.
-     * On le chargera explicitement quand nécessaire (via EntityGraph).
-     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "client_id",
@@ -56,6 +48,16 @@ public class Commande {
             foreignKey = @ForeignKey(name = "fk_commande_client")
     )
     private Client client;
+
+    /**
+     * Le USER (vendeur) qui a créé la commande.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "vendeur_id",
+            foreignKey = @ForeignKey(name = "fk_commande_vendeur")
+    )
+    private User vendeur;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut", nullable = false, length = 30)
@@ -84,14 +86,6 @@ public class Commande {
     @Column(name = "date_livraison_prevue")
     private LocalDate dateLivraisonPrevue;
 
-    @CreatedDate
-    @Column(name = "date_creation", nullable = false, updatable = false)
-    private LocalDateTime dateCreation;
-
-    @LastModifiedDate
-    @Column(name = "date_modification")
-    private LocalDateTime dateModification;
-
     @OneToMany(
             mappedBy = "commande",
             cascade = CascadeType.ALL,
@@ -101,25 +95,28 @@ public class Commande {
     @Builder.Default
     private List<LigneCommande> lignes = new ArrayList<>();
 
-    /**
-     * Ajoute une ligne et lie la relation bidirectionnelle.
-     */
+    @CreatedDate
+    @Column(name = "date_creation", nullable = false, updatable = false)
+    private LocalDateTime dateCreation;
+
+    @LastModifiedDate
+    @Column(name = "date_modification")
+    private LocalDateTime dateModification;
+
+    // -----------------------------------------
+    // Méthodes utilitaires
+    // -----------------------------------------
+
     public void ajouterLigne(LigneCommande ligne) {
         lignes.add(ligne);
         ligne.setCommande(this);
     }
 
-    /**
-     * Retire une ligne (orphanRemoval supprimera de la BDD).
-     */
     public void retirerLigne(LigneCommande ligne) {
         lignes.remove(ligne);
         ligne.setCommande(null);
     }
 
-    /**
-     * Vide toutes les lignes.
-     */
     public void viderLignes() {
         lignes.forEach(l -> l.setCommande(null));
         lignes.clear();

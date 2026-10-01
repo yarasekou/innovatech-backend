@@ -4,30 +4,28 @@ import com.innovatech.api.dto.ClientSummaryDTO;
 import com.innovatech.api.dto.CommandeRequestDTO;
 import com.innovatech.api.dto.CommandeResponseDTO;
 import com.innovatech.api.dto.LigneCommandeResponseDTO;
-import com.innovatech.api.entity.Client;
-import com.innovatech.api.entity.Commande;
-import com.innovatech.api.entity.LigneCommande;
+import com.innovatech.api.entity.*;
 import org.springframework.stereotype.Component;
 import com.innovatech.api.dto.LigneCommandeResponseDTO;
-import com.innovatech.api.entity.LigneCommande;
+
 import java.util.List;
 import java.util.List;
 
 @Component
 public class CommandeMapper {
 
-    public Commande toEntity(CommandeRequestDTO dto, Client client) {
+    public Commande toEntity(CommandeRequestDTO dto, Client client, User vendeur) {
         if (dto == null) return null;
 
         return Commande.builder()
                 .client(client)
+                .vendeur(vendeur)
                 .statut(dto.getStatut() != null ? dto.getStatut() : null)
                 .tvaPercent(dto.getTvaPercent() != null ? dto.getTvaPercent() : null)
                 .notes(dto.getNotes())
                 .dateLivraisonPrevue(dto.getDateLivraisonPrevue())
                 .build();
     }
-
     public void updateEntity(Commande entity, CommandeRequestDTO dto, Client client) {
         entity.setClient(client);
         entity.setTvaPercent(dto.getTvaPercent() != null ? dto.getTvaPercent() : entity.getTvaPercent());
@@ -43,7 +41,7 @@ public class CommandeMapper {
     public CommandeResponseDTO toResponseDTO(Commande entity) {
         if (entity == null) return null;
 
-        return CommandeResponseDTO.builder()
+        CommandeResponseDTO.CommandeResponseDTOBuilder builder = CommandeResponseDTO.builder()
                 .id(entity.getId())
                 .numero(entity.getNumero())
                 .client(toClientSummary(entity.getClient()))
@@ -57,8 +55,16 @@ public class CommandeMapper {
                 .dateLivraisonPrevue(entity.getDateLivraisonPrevue())
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification())
-                .lignes(toLignesDTO(entity.getLignes()))
-                .build();
+                .lignes(toLignesDTO(entity.getLignes()));
+
+        if (entity.getVendeur() != null) {
+            builder.vendeurId(entity.getVendeur().getId())
+                    .vendeurEmail(entity.getVendeur().getEmail())
+                    .vendeurNom(entity.getVendeur().getNom())
+                    .vendeurPrenom(entity.getVendeur().getPrenom());
+        }
+
+        return builder.build();
     }
 
     // -----------------------------------------

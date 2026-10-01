@@ -10,7 +10,10 @@ import com.innovatech.api.mapper.CommandeMapper;
 import com.innovatech.api.repository.ClientRepository;
 import com.innovatech.api.repository.CommandeRepository;
 import com.innovatech.api.repository.ProduitRepository;
+import com.innovatech.api.repository.UserRepository;
+import com.innovatech.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,12 +26,14 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 @Transactional(readOnly = true)
 public class CommandeService {
 
     private final CommandeRepository commandeRepository;
     private final ClientRepository clientRepository;
     private final ProduitRepository produitRepository;
+    private final UserRepository userRepository;
     private final CommandeMapper commandeMapper;
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
@@ -45,15 +50,32 @@ public class CommandeService {
     // -----------------------------------------
 
     public List<CommandeResponseDTO> findAll() {
-        return commandeRepository.findAllWithDetails()
+        if (SecurityUtils.isAdmin()) {
+            return commandeRepository.findAllWithDetails()
+                    .stream()
+                    .map(commandeMapper::toResponseDTO)
+                    .toList();
+        }
+
+        Long dataOwnerId = getCurrentDataOwnerId();
+        return commandeRepository.findByVendeurIdWithDetails(dataOwnerId)
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
     }
 
     public CommandeResponseDTO findById(Long id) {
-        Commande commande = commandeRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        Commande commande;
+
+        if (SecurityUtils.isAdmin()) {
+            commande = commandeRepository.findByIdWithDetails(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            commande = commandeRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        }
+
         return commandeMapper.toResponseDTO(commande);
     }
 
@@ -75,18 +97,26 @@ public class CommandeService {
     }
 
     public List<CommandeResponseDTO> findByStatut(StatutCommande statut) {
-        return commandeRepository.findByStatutWithDetails(statut)
+        if (SecurityUtils.isAdmin()) {
+            return commandeRepository.findByStatutWithDetails(statut)
+                    .stream()
+                    .map(commandeMapper::toResponseDTO)
+                    .toList();
+        }
+
+        Long dataOwnerId = getCurrentDataOwnerId();
+        return commandeRepository.findByStatutAndVendeurIdWithDetails(statut, dataOwnerId)
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
     }
 
     // -----------------------------------------
-    // CREATE — ne déduit PAS le stock
+    // CREATE — associe le vendeur (USER)
     // -----------------------------------------
 
     @Transactional
-    public CommandeResponseDTO create(CommandeRequestDTO dto) {
+    public CommandeResponseDTO create(CommandeRequestDTO dto, String vendeurEmail) {
         Client client = clientRepository.findById(dto.getClientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client", dto.getClientId()));
 
@@ -94,12 +124,16 @@ public class CommandeService {
             throw new BusinessException("Impossible de créer une commande pour un client inactif");
         }
 
-        Commande commande = commandeMapper.toEntity(dto, client);
+        User vendeur = userRepository.findByEmail(vendeurEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + vendeurEmail));
+
+        Commande commande = commandeMapper.toEntity(dto, client, vendeur);
         commande.setNumero(genererNumero());
         commande.setStatut(StatutCommande.EN_ATTENTE);
         commande.setDateCommande(LocalDateTime.now());
 
-        // Ajouter les lignes (SANS toucher au stock)
+        // Ajouter les lignes
         for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
             Produit produit = produitRepository.findById(ligneDTO.getProduitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
@@ -108,7 +142,6 @@ public class CommandeService {
                 throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
             }
 
-            // Vérification simple (pas de déduction)
             if (produit.getStock() < ligneDTO.getQuantite()) {
                 throw new BusinessException(String.format(
                         "Stock insuffisant pour %s : demandé %d, disponible %d",
@@ -122,25 +155,32 @@ public class CommandeService {
                     .build();
             ligne.calculerSousTotal();
 
-            // ⚠️ PAS de produit.setStock() ici — le stock sera déduit à la LIVRAISON
-
             commande.ajouterLigne(ligne);
         }
 
         recalculerTotaux(commande);
 
         Commande saved = commandeRepository.save(commande);
+        log.info("Commande {} créée par {}", saved.getNumero(), vendeurEmail);
         return commandeMapper.toResponseDTO(saved);
     }
 
     // -----------------------------------------
-    // UPDATE — ne touche PAS au stock
+    // UPDATE
     // -----------------------------------------
 
     @Transactional
     public CommandeResponseDTO update(Long id, CommandeRequestDTO dto) {
-        Commande existing = commandeRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        Commande existing;
+
+        if (SecurityUtils.isAdmin()) {
+            existing = commandeRepository.findByIdWithDetails(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            existing = commandeRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        }
 
         if (existing.getStatut() != StatutCommande.EN_ATTENTE) {
             throw new BusinessException(
@@ -151,11 +191,8 @@ public class CommandeService {
                 .orElseThrow(() -> new ResourceNotFoundException("Client", dto.getClientId()));
 
         commandeMapper.updateEntity(existing, dto, client);
-
-        // Vider les lignes (orphanRemoval les supprime)
         existing.viderLignes();
 
-        // Recréer les nouvelles lignes (SANS toucher au stock)
         for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
             Produit produit = produitRepository.findById(ligneDTO.getProduitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
@@ -183,13 +220,21 @@ public class CommandeService {
     }
 
     // -----------------------------------------
-    // CHANGEMENT DE STATUT — c'est ICI que le stock bouge
+    // CHANGEMENT DE STATUT
     // -----------------------------------------
 
     @Transactional
     public CommandeResponseDTO changerStatut(Long id, StatutCommande nouveauStatut) {
-        Commande commande = commandeRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        Commande commande;
+
+        if (SecurityUtils.isAdmin()) {
+            commande = commandeRepository.findByIdWithDetails(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        } else {
+            Long dataOwnerId = getCurrentDataOwnerId();
+            commande = commandeRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        }
 
         StatutCommande actuel = commande.getStatut();
         String transition = actuel.name() + "->" + nouveauStatut.name();
@@ -199,12 +244,10 @@ public class CommandeService {
                     "Transition de statut invalide : %s → %s", actuel, nouveauStatut));
         }
 
-        // ✅ Avant de VALIDER : vérifier que le stock est disponible
         if (nouveauStatut == StatutCommande.VALIDEE) {
             verifierStockDisponible(commande);
         }
 
-        // ✅ À la LIVRAISON : déduire le stock
         if (nouveauStatut == StatutCommande.LIVREE) {
             deduireStock(commande);
         }
@@ -215,7 +258,7 @@ public class CommandeService {
     }
 
     // -----------------------------------------
-    // DELETE — ne restitue PAS le stock (jamais déduit)
+    // DELETE
     // -----------------------------------------
 
     @Transactional
@@ -228,8 +271,6 @@ public class CommandeService {
             throw new BusinessException(
                     "Impossible de supprimer une commande en cours ou livrée. Annulez-la.");
         }
-
-        // ⚠️ Pas de restitution de stock ici (jamais déduit)
 
         commandeRepository.delete(commande);
     }
@@ -264,10 +305,6 @@ public class CommandeService {
         commande.setTotalTTC(totalTTC);
     }
 
-    /**
-     * Vérifie que le stock est disponible pour toutes les lignes.
-     * Ne modifie PAS le stock.
-     */
     private void verifierStockDisponible(Commande commande) {
         for (LigneCommande ligne : commande.getLignes()) {
             Produit produit = ligne.getProduit();
@@ -279,10 +316,6 @@ public class CommandeService {
         }
     }
 
-    /**
-     * Déduit le stock pour chaque ligne de la commande.
-     * Appelé uniquement lors du passage en LIVREE.
-     */
     private void deduireStock(Commande commande) {
         for (LigneCommande ligne : commande.getLignes()) {
             Produit produit = ligne.getProduit();
@@ -296,5 +329,32 @@ public class CommandeService {
             produit.setStock(produit.getStock() - ligne.getQuantite());
             produitRepository.save(produit);
         }
+    }
+
+    /**
+     * Retourne l'ID du propriétaire des données à filtrer.
+     * <p>
+     * - ADMIN  : ne devrait pas arriver ici
+     * - USER   : son ID
+     * - SELLER : l'ID de son patron
+     */
+    private Long getCurrentDataOwnerId() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
+
+        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+            if (user.getPatron() == null) {
+                throw new BusinessException("Ce SELLER n'a pas de patron assigné");
+            }
+            return user.getPatron().getId();
+        }
+
+        return user.getId();
     }
 }

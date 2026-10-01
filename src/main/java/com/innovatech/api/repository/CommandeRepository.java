@@ -67,4 +67,31 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
             "LEFT JOIN FETCH l.produit " +
             "WHERE c.statut = :statut")
     List<Commande> findByStatutWithDetails(@Param("statut") StatutCommande statut);
+
+    @Query("SELECT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.vendeur " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.vendeur.id = :vendeurId " +
+            "ORDER BY c.dateCommande DESC")
+    List<Commande> findByVendeurIdWithDetails(@Param("vendeurId") Long vendeurId);
+
+    @Query("SELECT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.vendeur " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.id = :id AND c.vendeur.id = :vendeurId")
+    Optional<Commande> findByIdAndVendeurIdWithDetails(@Param("id") Long id,
+                                                       @Param("vendeurId") Long vendeurId);
+
+    @Query("SELECT c FROM Commande c " +
+            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.vendeur " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.statut = :statut AND c.vendeur.id = :vendeurId")
+    List<Commande> findByStatutAndVendeurIdWithDetails(@Param("statut") StatutCommande statut,
+                                                       @Param("vendeurId") Long vendeurId);
 }
