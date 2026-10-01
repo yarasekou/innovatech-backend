@@ -1,0 +1,116 @@
+### Variables
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. FATOU CRÉE UNE COMMANDE
+### =========================================================
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenFatou", response.body.token);
+%}
+
+
+### 1.1 — Fatou crée une commande pour son client Moussa Ndiaye (id=1)
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{tokenFatou}}
+
+{
+  "clientId": 1,
+  "tvaPercent": 18,
+  "notes": "Commande de test",
+  "dateLivraisonPrevue": "2026-10-15",
+  "lignes": [
+    { "produitId": 1, "quantite": 2 },
+    { "produitId": 2, "quantite": 5 }
+  ]
+}
+
+### 1.2 — Fatou voit ses commandes
+GET {{baseUrl}}/commandes
+Authorization: Bearer {{tokenFatou}}
+
+
+### =========================================================
+### 2. TEST ISOLATION
+### =========================================================
+
+### 2.1 — Bouba voit SES commandes (devrait être vide)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bouba@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenBouba", response.body.token);
+%}
+
+###
+GET {{baseUrl}}/commandes
+Authorization: Bearer {{tokenBouba}}
+
+
+### 2.2 — Ali (SELLER de Fatou) voit les commandes de Fatou
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenAli", response.body.token);
+%}
+
+### Ali voit les coomandes de Fatou
+GET {{baseUrl}}/commandes
+Authorization: Bearer {{tokenAli}}
+
+
+### 2.3 — Yara (ADMIN) voit TOUT
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("tokenYara", response.body.token);
+%}
+
+### Voir tout
+GET {{baseUrl}}/commandes
+Authorization: Bearer {{tokenYara}}
+
+
+### =========================================================
+### 3. CHANGEMENT DE STATUT PAR LE SELLER
+### =========================================================
+
+### 3.1 — Ali (SELLER) valide la commande
+PATCH {{baseUrl}}/commandes/1/statut/VALIDEE
+Authorization: Bearer {{tokenAli}}
+
+
+### 3.2 — Ali passe en EN_COURS
+PATCH {{baseUrl}}/commandes/1/statut/EN_COURS
+Authorization: Bearer {{tokenAli}}
+
+
+### 3.3 — Ali passe en LIVREE (stock -N)
+PATCH {{baseUrl}}/commandes/1/statut/LIVREE
+Authorization: Bearer {{tokenAli}}
