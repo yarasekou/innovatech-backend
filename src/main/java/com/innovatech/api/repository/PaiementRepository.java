@@ -66,4 +66,12 @@ public interface PaiementRepository extends JpaRepository<Paiement, Long> {
             "WHERE p.id = :id AND p.user.id = :userId")
     Optional<Paiement> findByIdAndUserIdWithDetails(@Param("id") Long id,
                                                     @Param("userId") Long userId);
+
+    @Query("SELECT COUNT(p) FROM Paiement p " +
+            "WHERE p.statut = 'VALIDE' AND p.user.id = :userId")
+    long countValideByUserId(@Param("userId") Long userId);
+
+    @Query("SELECT COALESCE(SUM(p.montant), 0) FROM Paiement p " +
+            "WHERE p.statut = 'VALIDE' AND p.user.id = :userId")
+    BigDecimal sumMontantValideByUserId(@Param("userId") Long userId);
 }

@@ -93,4 +93,8 @@ public interface ProduitRepository extends JpaRepository<Produit, Long> {
             "LEFT JOIN FETCH p.photos " +
             "WHERE p.id = :id")
     Optional<Produit> findByIdWithDetailsAndPhotos(@Param("id") Long id);
+
+    long countByUserId(Long userId);
+
+    long countByUserIdAndActifTrue(Long userId);
 }

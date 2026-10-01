@@ -53,4 +53,8 @@ public interface ClientRepository extends JpaRepository<Client, Long> {
             "OR LOWER(c.prenom) LIKE LOWER(CONCAT('%', :query, '%')))")
     List<Client> searchByUserId(@Param("userId") Long userId,
                                 @Param("query") String query);
+
+    long countByUserId(Long userId);
+
+    long countByUserIdAndActifTrue(Long userId);
 }

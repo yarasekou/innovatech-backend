@@ -1,5 +1,8 @@
 package com.innovatech.api.repository;
 
+import com.innovatech.api.dto.dashboard.ChiffreAffairesMoisDTO;
+import com.innovatech.api.dto.dashboard.TopClientDTO;
+import com.innovatech.api.dto.dashboard.TopProduitDTO;
 import com.innovatech.api.entity.Commande;
 import com.innovatech.api.entity.StatutCommande;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -7,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -94,4 +98,60 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
             "WHERE c.statut = :statut AND c.vendeur.id = :vendeurId")
     List<Commande> findByStatutAndVendeurIdWithDetails(@Param("statut") StatutCommande statut,
                                                        @Param("vendeurId") Long vendeurId);
+
+    // Chiffre d'affaires total (hors annulées)
+    @Query("SELECT COALESCE(SUM(c.totalHT), 0) FROM Commande c " +
+            "WHERE c.statut <> 'ANNULEE'")
+    BigDecimal sumTotalHT();
+
+    @Query("SELECT COALESCE(SUM(c.totalTTC), 0) FROM Commande c " +
+            "WHERE c.statut <> 'ANNULEE'")
+    BigDecimal sumTotalTTC();
+
+    // Nombre de commandes par statut
+    long countByStatut(StatutCommande statut);
+
+    // Nombre total (hors annulées)
+    @Query("SELECT COUNT(c) FROM Commande c WHERE c.statut <> 'ANNULEE'")
+    long countNonAnnulees();
+
+    // Top produits (par quantité vendue)
+    @Query("SELECT new com.innovatech.api.dto.dashboard.TopProduitDTO(" +
+            "  p.id, p.reference, p.nom, " +
+            "  SUM(lc.quantite), " +
+            "  SUM(lc.sousTotal)" +
+            ") " +
+            "FROM LigneCommande lc " +
+            "JOIN lc.produit p " +
+            "JOIN lc.commande c " +
+            "WHERE c.statut <> 'ANNULEE' " +
+            "GROUP BY p.id, p.reference, p.nom " +
+            "ORDER BY SUM(lc.quantite) DESC")
+    List<TopProduitDTO> findTopProduits();
+
+    // Top clients (par CA)
+    @Query("SELECT new com.innovatech.api.dto.dashboard.TopClientDTO(" +
+            "  cl.id, cl.nom, cl.prenom, cl.email, " +
+            "  COUNT(c), " +
+            "  SUM(c.totalTTC)" +
+            ") " +
+            "FROM Commande c " +
+            "JOIN c.client cl " +
+            "WHERE c.statut <> 'ANNULEE' " +
+            "GROUP BY cl.id, cl.nom, cl.prenom, cl.email " +
+            "ORDER BY SUM(c.totalTTC) DESC")
+    List<TopClientDTO> findTopClients();
+
+    // Chiffre d'affaires par mois
+    @Query("SELECT new com.innovatech.api.dto.dashboard.ChiffreAffairesMoisDTO(" +
+            "  YEAR(c.dateCommande), MONTH(c.dateCommande), " +
+            "  '', " +
+            "  COALESCE(SUM(c.totalHT), 0), " +
+            "  COUNT(c)" +
+            ") " +
+            "FROM Commande c " +
+            "WHERE c.statut <> 'ANNULEE' " +
+            "GROUP BY YEAR(c.dateCommande), MONTH(c.dateCommande) " +
+            "ORDER BY YEAR(c.dateCommande) DESC, MONTH(c.dateCommande) DESC")
+    List<ChiffreAffairesMoisDTO> findChiffreAffairesParMois();
 }

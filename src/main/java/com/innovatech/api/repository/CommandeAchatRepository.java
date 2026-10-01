@@ -90,4 +90,6 @@ public interface CommandeAchatRepository extends JpaRepository<CommandeAchat, Lo
             "WHERE c.statut = :statut AND c.acheteur.id = :acheteurId")
     List<CommandeAchat> findByStatutAndAcheteurIdWithDetails(@Param("statut") StatutAchat statut,
                                                              @Param("acheteurId") Long acheteurId);
+
+    long countByAcheteurId(Long acheteurId);
 }
