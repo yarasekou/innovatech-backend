@@ -764,3 +764,40 @@ Content-Type: application/json
 Authorization: Bearer {{adminToken}}
 
 { "nom": "Test Admin", "slug": "test-admin" }
+
+
+### =========================================================
+### ÉTAPE 13 — FACTURES (USER uniquement)
+### =========================================================### 13.1 — Créer une facture pour la commande 1 (LIVREE)
+POST {{baseUrl}}/factures
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "commandeId": 1,
+  "notes": "Facture émise suite à la livraison"
+}
+
+### 13.2 — Émettre la facture 1 (BROUILLON → EMISE)
+PATCH {{baseUrl}}/factures/1/emettre
+Authorization: Bearer {{aliToken}}
+
+### 13.3 — Marquer la facture 1 comme PAYEE
+PATCH {{baseUrl}}/factures/1/payer
+Authorization: Bearer {{aliToken}}
+
+### 13.4 — Liste des factures d'Ali
+GET {{baseUrl}}/factures
+Authorization: Bearer {{aliToken}}
+
+### 13.5 — Détail facture 1
+GET {{baseUrl}}/factures/1
+Authorization: Bearer {{aliToken}}
+
+### 13.6 — Facture de la commande 1
+GET {{baseUrl}}/factures/commande/1
+Authorization: Bearer {{aliToken}}
+
+### 13.7 — (ADMIN) Batch mettre à jour les retards
+POST {{baseUrl}}/factures/mettre-a-jour-retards
+Authorization: Bearer {{adminToken}}
