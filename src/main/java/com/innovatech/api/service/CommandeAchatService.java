@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -35,6 +36,8 @@ public class CommandeAchatService {
     private final ProduitRepository produitRepository;
     private final UserRepository userRepository;
     private final CommandeAchatMapper commandeAchatMapper;
+    private final StockFournisseurService stockFournisseurService;
+
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
             "EN_ATTENTE->COMMANDEE",
@@ -143,6 +146,7 @@ public class CommandeAchatService {
 
     @Transactional
     public CommandeAchatResponseDTO create(CommandeAchatRequestDTO dto, String acheteurEmail) {
+        // 1. Récupérer le fournisseur
         Fournisseur fournisseur = fournisseurRepository.findById(dto.getFournisseurId())
                 .orElseThrow(() -> new ResourceNotFoundException("Fournisseur", dto.getFournisseurId()));
 
@@ -150,16 +154,20 @@ public class CommandeAchatService {
             throw new BusinessException("Impossible de commander à un fournisseur inactif");
         }
 
+        // 2. Récupérer l'acheteur (le USER connecté)
         User acheteur = userRepository.findByEmail(acheteurEmail)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User introuvable avec l'email : " + acheteurEmail));
 
+        // 3. Créer l'entité CommandeAchat
         CommandeAchat commande = commandeAchatMapper.toEntity(dto, fournisseur, acheteur);
         commande.setNumero(genererNumero());
         commande.setStatut(StatutAchat.EN_ATTENTE);
         commande.setDateCommande(LocalDateTime.now());
 
+        // 4. Traiter les lignes
         for (LigneCommandeAchatRequestDTO ligneDTO : dto.getLignes()) {
+            // 4.1 Charger le produit
             Produit produit = produitRepository.findById(ligneDTO.getProduitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
 
@@ -167,24 +175,57 @@ public class CommandeAchatService {
                 throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
             }
 
-            BigDecimal prix = ligneDTO.getPrixAchatUnitaire() != null
-                    ? ligneDTO.getPrixAchatUnitaire()
-                    : produit.getPrixAchat();
+            // 4.2 Déterminer le prix d'achat unitaire
+            BigDecimal prixAchatUnitaire;
 
+            if (ligneDTO.getPrixAchatUnitaire() != null) {
+                // a) Prix explicite dans la requête → on l'utilise
+                prixAchatUnitaire = ligneDTO.getPrixAchatUnitaire();
+            } else {
+                // b) Chercher le prix existant pour ce couple (produit, fournisseur)
+                BigDecimal prixExistant = stockFournisseurService.getPrixAchat(
+                        produit.getId(),
+                        fournisseur.getId()
+                );
+
+                if (prixExistant != null && prixExistant.compareTo(BigDecimal.ZERO) > 0) {
+                    // Prix déjà connu chez ce fournisseur
+                    prixAchatUnitaire = prixExistant;
+                    log.info("Prix d'achat récupéré depuis StockFournisseur : {} pour produit {} / fournisseur {}",
+                            prixExistant, produit.getReference(), fournisseur.getNom());
+                } else {
+                    // c) Fallback : prix d'achat par défaut du produit
+                    prixAchatUnitaire = produit.getPrixAchat();
+                    log.info("Prix d'achat par défaut utilisé : {} pour produit {}",
+                            prixAchatUnitaire, produit.getReference());
+                }
+            }
+
+            if (prixAchatUnitaire == null || prixAchatUnitaire.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new BusinessException(String.format(
+                        "Aucun prix d'achat valide pour le produit '%s'. " +
+                                "Précisez 'prixAchatUnitaire' dans la requête.",
+                        produit.getNom()));
+            }
+
+            // 4.3 Créer la ligne
             LigneCommandeAchat ligne = LigneCommandeAchat.builder()
                     .produit(produit)
                     .quantite(ligneDTO.getQuantite())
-                    .prixAchatUnitaire(prix)
+                    .prixAchatUnitaire(prixAchatUnitaire)
                     .build();
             ligne.calculerSousTotal();
 
             commande.ajouterLigne(ligne);
         }
 
+        // 5. Recalculer les totaux
         recalculerTotaux(commande);
 
+        // 6. Sauvegarder
         CommandeAchat saved = commandeAchatRepository.save(commande);
-        log.info("CommandeAchat {} créée par {}", saved.getNumero(), acheteurEmail);
+        log.info("Commande d'achat {} créée par {} ({})",
+                saved.getNumero(), acheteurEmail, fournisseur.getNom());
         return commandeAchatMapper.toResponseDTO(saved);
     }
 
@@ -337,33 +378,61 @@ public class CommandeAchatService {
     }
 
     private void augmenterStock(CommandeAchat commande) {
+        Long fournisseurId = commande.getFournisseur().getId();
+
         for (LigneCommandeAchat ligne : commande.getLignes()) {
             Produit produit = ligne.getProduit();
+            int quantite = ligne.getQuantite();
+            BigDecimal prixAchat = ligne.getPrixAchatUnitaire();
+
+            // 1. Mettre à jour le stock fournisseur
+            stockFournisseurService.ajouterStock(
+                    produit.getId(),
+                    fournisseurId,
+                    quantite,
+                    prixAchat
+            );
+
+            // 2. Mettre à jour le stock global du produit (agrégé)
             int ancienStock = produit.getStock();
-            produit.setStock(ancienStock + ligne.getQuantite());
+            produit.setStock(ancienStock + quantite);
             produitRepository.save(produit);
-            log.info("Produit {} : stock {} → {} (+{})",
-                    produit.getNom(), ancienStock, produit.getStock(), ligne.getQuantite());
+
+            log.info("Produit {} : stock global {} → {} (+{})",
+                    produit.getNom(), ancienStock, produit.getStock(), quantite);
         }
     }
 
     private void restituerStock(CommandeAchat commande) {
+        Long fournisseurId = commande.getFournisseur().getId();
+
         for (LigneCommandeAchat ligne : commande.getLignes()) {
             Produit produit = ligne.getProduit();
+            int quantite = ligne.getQuantite();
+
+            // 1. Retirer du stock fournisseur
+            try {
+                stockFournisseurService.retirerStock(produit.getId(), fournisseurId, quantite);
+            } catch (Exception e) {
+                log.warn("Impossible de retirer du stock fournisseur : {}", e.getMessage());
+                // On continue quand même (le stock global peut être restitué)
+            }
+
+            // 2. Restituer le stock global
             int ancienStock = produit.getStock();
-            int nouveauStock = ancienStock - ligne.getQuantite();
+            int nouveauStock = ancienStock - quantite;
 
             if (nouveauStock < 0) {
                 throw new BusinessException(String.format(
-                        "Impossible de restituer le stock : %s deviendrait négatif (%d → %d). " +
-                                "La marchandise a peut-être déjà été vendue.",
+                        "Impossible de restituer le stock : %s deviendrait négatif (%d → %d)",
                         produit.getNom(), ancienStock, nouveauStock));
             }
 
             produit.setStock(nouveauStock);
             produitRepository.save(produit);
-            log.info("Produit {} : stock {} → {} (-{})",
-                    produit.getNom(), ancienStock, nouveauStock, ligne.getQuantite());
+
+            log.info("Produit {} : stock global {} → {} (-{})",
+                    produit.getNom(), ancienStock, nouveauStock, quantite);
         }
     }
 

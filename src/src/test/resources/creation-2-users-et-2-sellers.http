@@ -98,6 +98,41 @@ Authorization: Bearer {{tokenBouba}}
 GET {{baseUrl}}/fournisseurs
 Authorization: Bearer {{tokenBouba}}
 
+### Un fournisseur
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{tokenBouba}}
+
+{
+  "code": "FOUR-B-001",
+  "nom": "Dell France",
+  "email": "contact@dell.fr",
+  "pays": "France",
+  "contactNom": "Marie Dupont"
+}
+
+### Créer une commande d'achat
+POST {{baseUrl}}/commandes-achat
+Content-Type: application/json
+Authorization: Bearer {{tokenFatou}}
+
+{
+  "fournisseurId": 1,
+  "tvaPercent": 18,
+  "notes": "Réappro chargeurs",
+  "lignes": [
+    { "produitId": 1, "quantite": 20, "prixAchatUnitaire": 10000 }
+  ]
+}
+
+###  Passer en RECUE
+PATCH {{baseUrl}}/commandes-achat/2/statut/RECUE
+Authorization: Bearer {{tokenFatou}}
+
+### Vérifier le stock fournisseur
+GET {{baseUrl}}/stocks-fournisseur/produit/1
+Authorization: Bearer {{tokenFatou}}
+
 ### =========================================================
 ### 4. FATOU CRÉE ALI (SELLER)
 ### =========================================================
