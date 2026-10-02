@@ -1,0 +1,766 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### ÉTAPE 1 — YARA (ADMIN)
+### =========================================================
+
+### 1.1 — Register Yara
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "yara",
+  "email": "yara@innovatech.com",
+  "password": "password123",
+  "prenom": "Yara",
+  "nom": "Sékou"
+}
+
+### 1.2 — Login Yara (capture token)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("token", response.body.token);
+    client.log("✅ Token Yara capturé (user 1)");
+%}
+
+### 1.3 — Setup Admin
+POST {{baseUrl}}/auth/setup-admin
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "secretKey": "innova-setup-key-2026"
+}
+
+### 1.4 — Re-login Yara (ADMIN)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("adminToken", response.body.token);
+    client.log("✅ Token ADMIN capturé");
+%}
+
+
+### =========================================================
+### ÉTAPE 2 — ALI et MOUSSA (USER, futurs patrons)
+### =========================================================
+
+### 2.1 — Register Ali (USER)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "ali",
+  "email": "ali@innovatech.com",
+  "password": "password123",
+  "prenom": "Ali",
+  "nom": "Ndiaye"
+}
+
+### 2.2 — Register Moussa (USER)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "username": "moussa",
+  "email": "moussa@innovatech.com",
+  "password": "password123",
+  "prenom": "Moussa",
+  "nom": "Fall"
+}
+
+### 2.3 — Login Ali (capture token)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("aliToken", response.body.token);
+    client.log("✅ Token Ali capturé (user 2)");
+%}
+
+### 2.4 — Login Moussa (capture token)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "moussa@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("moussaToken", response.body.token);
+    client.log("✅ Token Moussa capturé (user 3)");
+%}
+
+
+### =========================================================
+### ÉTAPE 3 — FATOU et BOUBA créés PAR leurs patrons (SELLERs)
+### =========================================================
+
+### 3.1 — Ali crée Fatou (SELLER)
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "username": "fatou",
+  "email": "fatou@innovatech.com",
+  "password": "password123",
+  "prenom": "Fatou",
+  "nom": "Sow"
+}
+
+### 3.2 — Moussa crée Bouba (SELLER)
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "username": "bouba",
+  "email": "bouba@innovatech.com",
+  "password": "password123",
+  "prenom": "Bouba",
+  "nom": "Diop"
+}
+
+### 3.3 — Login Fatou (SELLER, capture token)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("fatouToken", response.body.token);
+    client.log("✅ Token Fatou capturé (SELLER)");
+%}
+
+### 3.4 — Login Bouba (SELLER, capture token)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bouba@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("boubaToken", response.body.token);
+    client.log("✅ Token Bouba capturé (SELLER)");
+%}
+
+
+### =========================================================
+### ÉTAPE 4 — CATÉGORIES (ADMIN uniquement)
+### =========================================================
+
+### 4.1 — Accessoires électroniques (racine)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Accessoires électroniques", "slug": "accessoires-electroniques", "description": "Accessoires électroniques divers" }
+
+### 4.2 — Chargeurs
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Chargeurs", "slug": "chargeurs", "parentId": 1 }
+
+### 4.3 — Câbles
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Câbles", "slug": "cables", "parentId": 1 }
+
+### 4.4 — Écouteurs
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Écouteurs", "slug": "ecouteurs", "parentId": 1 }
+
+### 4.5 — Power Banks
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Power Banks", "slug": "power-banks", "parentId": 1 }
+
+### 4.6 — Cartes mémoire
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Cartes mémoire", "slug": "cartes-memoire", "parentId": 1 }
+
+### 4.7 — Produits informatiques (racine)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Produits informatiques", "slug": "produits-informatiques", "description": "Ordinateurs et matériel informatique" }
+
+### 4.8 — Ordinateurs portables
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Ordinateurs portables", "slug": "ordinateurs-portables", "parentId": 7 }
+
+### 4.9 — Écrans
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Écrans", "slug": "ecrans", "parentId": 7 }
+
+### 4.10 — Disques SSD / HDD
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Disques SSD / HDD", "slug": "disques-ssd-hdd", "parentId": 7 }
+
+### 4.11 — Routeurs Wi-Fi
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Routeurs Wi-Fi", "slug": "routeurs-wifi", "parentId": 7 }
+
+### 4.12 — Webcam
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Webcam", "slug": "webcam", "parentId": 7 }
+
+### 4.13 — Électronique / Maison (racine)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Électronique / Maison", "slug": "electronique-maison", "description": "Électronique pour la maison" }
+
+### 4.14 — Téléviseurs
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Téléviseurs", "slug": "televiseurs", "parentId": 13 }
+
+### 4.15 — Services informatiques (racine)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Services informatiques", "slug": "services-informatiques", "description": "Services et prestations informatiques" }
+
+### 4.16 — Installation Windows
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Installation Windows", "slug": "installation-windows", "parentId": 15 }
+
+
+### =========================================================
+### ÉTAPE 5 — FOURNISSEURS (USER uniquement)
+### =========================================================
+
+### 5.1 — Samsung France (Ali)
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "code": "FOUR-SAM-001",
+  "nom": "Samsung France",
+  "email": "contact@samsung.fr",
+  "telephone": "+33123456789",
+  "pays": "France",
+  "contactNom": "Jean Dupont",
+  "actif": true
+}
+
+### 5.2 — Dell France (Moussa)
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "code": "FOUR-DELL-001",
+  "nom": "Dell France",
+  "email": "contact@dell.fr",
+  "telephone": "+33987654321",
+  "pays": "France",
+  "contactNom": "Marie Dupont",
+  "actif": true
+}
+
+
+### =========================================================
+### ÉTAPE 6 — CLIENTS (USER uniquement)
+### =========================================================
+
+### 6.1 — Moussa Ndiaye (Ali)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "nom": "Ndiaye",
+  "prenom": "Moussa",
+  "email": "moussa.ndiaye@example.com",
+  "telephone": "771111111",
+  "adresse": "Sacré-Cœur 3",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+### 6.2 — Aminata Diop (Ali)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "nom": "Diop",
+  "prenom": "Aminata",
+  "email": "aminata.diop@example.com",
+  "telephone": "772222222",
+  "adresse": "Point E",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+### 6.3 — Ibrahima Fall (Moussa)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "nom": "Fall",
+  "prenom": "Ibrahima",
+  "email": "ibrahima.fall@example.com",
+  "telephone": "773333333",
+  "adresse": "Almadies",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+### 6.4 — Coumba Sow (Moussa)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "nom": "Sow",
+  "prenom": "Coumba",
+  "email": "coumba.sow@example.com",
+  "telephone": "774444444",
+  "adresse": "Mermoz",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+
+### =========================================================
+### ÉTAPE 7 — PRODUITS (USER uniquement)
+### =========================================================
+
+### 7.1 — Chargeur Samsung 25W (Ali, catégorie 2)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "reference": "CHARGEUR-SAM-25W",
+  "nom": "Chargeur Samsung 25W",
+  "description": "Chargeur rapide Samsung",
+  "prix": 15000.00,
+  "prixAchat": 10000.00,
+  "stock": 50,
+  "categorieId": 2,
+  "actif": true
+}
+
+### 7.2 — Câble USB-C Samsung (Ali, catégorie 3)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "reference": "CABLE-USBC-SAM",
+  "nom": "Câble USB-C Samsung",
+  "description": "Câble de charge USB-C",
+  "prix": 5000.00,
+  "prixAchat": 3000.00,
+  "stock": 100,
+  "categorieId": 3,
+  "actif": true
+}
+
+### 7.3 — Écouteurs JBL Tune (Ali, catégorie 4)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "reference": "ECOUTEURS-JBL-TUNE",
+  "nom": "Écouteurs JBL Tune",
+  "description": "Écouteurs Bluetooth JBL",
+  "prix": 25000.00,
+  "prixAchat": 18000.00,
+  "stock": 20,
+  "categorieId": 4,
+  "actif": true
+}
+
+### 7.4 — Xiaomi Power Bank 20000 mAh (Ali, catégorie 5)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "reference": "XIAOMI-PB-20000",
+  "nom": "Xiaomi Power Bank 20000 mAh",
+  "description": "Batterie externe Xiaomi",
+  "prix": 35000.00,
+  "prixAchat": 25000.00,
+  "stock": 25,
+  "categorieId": 5,
+  "actif": true
+}
+
+### 7.5 — Carte SanDisk 64 Go (Ali, catégorie 6)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "reference": "SANDISK-64GO",
+  "nom": "Carte mémoire SanDisk 64 Go",
+  "description": "Carte microSD 64 Go",
+  "prix": 12000.00,
+  "prixAchat": 8000.00,
+  "stock": 50,
+  "categorieId": 6,
+  "actif": true
+}
+
+### 7.6 — HP Pavilion 15 (Moussa, catégorie 8)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "reference": "HP-PAVILION-15",
+  "nom": "HP Pavilion 15",
+  "description": "Ordinateur portable HP 15 pouces",
+  "prix": 550000.00,
+  "prixAchat": 420000.00,
+  "stock": 5,
+  "categorieId": 8,
+  "actif": true
+}
+
+### 7.7 — Écran Dell 24 pouces (Moussa, catégorie 9)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "reference": "DELL-24-ECRAN",
+  "nom": "Écran Dell 24 pouces",
+  "description": "Moniteur Dell Full HD 24 pouces",
+  "prix": 150000.00,
+  "prixAchat": 110000.00,
+  "stock": 8,
+  "categorieId": 9,
+  "actif": true
+}
+
+### 7.8 — SSD Samsung 500 Go (Moussa, catégorie 10)
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "reference": "SSD-SAM-500GO",
+  "nom": "SSD Samsung 500 Go",
+  "description": "Disque SSD Samsung 500 Go",
+  "prix": 65000.00,
+  "prixAchat": 48000.00,
+  "stock": 20,
+  "categorieId": 10,
+  "actif": true
+}
+
+
+### =========================================================
+### ÉTAPE 8 — PHOTOS DES PRODUITS (⚠️ OBLIGATOIRE avant toute commande)
+### =========================================================
+###
+### ⚠️ ATTENTION : les étapes 8.1 à 8.8 doivent être exécutées
+### dans IntelliJ (l'onglet "Run with file") avec un fichier
+### image local. Le format .http pur ne supporte pas
+### multipart/form-data de manière fiable.
+###
+### UTILISE PLUTÔT LA COMMANDE CURL SUIVANTE :
+###
+### curl -X POST http://localhost:8080/api/produits/1/photos \
+###   -H "Authorization: Bearer $ALI_TOKEN" \
+###   -F "file=@/chemin/vers/chargeur.jpg" \
+###   -F "principale=true"
+###
+### Répète pour chaque produit (1 à 8) avec une image.
+###
+### Alternative : commenter temporairement la règle
+### "photo obligatoire" dans CommandeService.create().
+### =========================================================
+
+### 8.1 — (MANUEL) Ajouter photo au produit 1 (Chargeur)
+### 8.2 — (MANUEL) Ajouter photo au produit 2 (Câble)
+### 8.3 — (MANUEL) Ajouter photo au produit 3 (Écouteurs)
+### 8.4 — (MANUEL) Ajouter photo au produit 4 (Power Bank)
+### 8.5 — (MANUEL) Ajouter photo au produit 5 (Carte)
+### 8.6 — (MANUEL) Ajouter photo au produit 6 (HP)
+### 8.7 — (MANUEL) Ajouter photo au produit 7 (Dell)
+### 8.8 — (MANUEL) Ajouter photo au produit 8 (SSD)
+
+
+### =========================================================
+### ÉTAPE 9 — COMMANDES (USER uniquement)
+### =========================================================
+
+### 9.1 — Commande 1 (Ali, Client 1)
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "clientId": 1,
+  "tvaPercent": 18.00,
+  "notes": "Commande de test",
+  "dateLivraisonPrevue": "2026-10-15",
+  "lignes": [
+    { "produitId": 1, "quantite": 2 },
+    { "produitId": 2, "quantite": 5 }
+  ]
+}
+
+### 9.2 — Commande 2 (Ali, Client 2)
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "clientId": 2,
+  "tvaPercent": 18.00,
+  "lignes": [
+    { "produitId": 2, "quantite": 3 }
+  ]
+}
+
+### 9.3 — Commande 3 (Moussa, Client 3)
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "clientId": 3,
+  "tvaPercent": 18.00,
+  "lignes": [
+    { "produitId": 6, "quantite": 1 }
+  ]
+}
+
+
+### =========================================================
+### ÉTAPE 10 — VALIDER ET LIVRER LA COMMANDE 1
+### =========================================================
+
+### 10.1 — Commande 1 → VALIDEE
+PATCH {{baseUrl}}/commandes/1/statut/VALIDEE
+Authorization: Bearer {{aliToken}}
+
+### 10.2 — Commande 1 → EN_COURS
+PATCH {{baseUrl}}/commandes/1/statut/EN_COURS
+Authorization: Bearer {{aliToken}}
+
+### 10.3 — Commande 1 → LIVREE (déduit le stock)
+PATCH {{baseUrl}}/commandes/1/statut/LIVREE
+Authorization: Bearer {{aliToken}}
+
+
+### =========================================================
+### ÉTAPE 11 — PAIEMENTS (USER uniquement)
+### =========================================================
+
+### 11.1 — Paiement partiel commande 1 (Wave, Ali)
+POST {{baseUrl}}/paiements
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "commandeId": 1,
+  "montant": 30000.00,
+  "methode": "WAVE",
+  "reference": "TX-WAVE-001"
+}
+
+### 11.2 — Reste à payer commande 1
+GET {{baseUrl}}/paiements/commande/1/reste
+Authorization: Bearer {{aliToken}}
+
+
+### =========================================================
+### ÉTAPE 12 — COMMANDES D'ACHAT (USER uniquement)
+### =========================================================
+
+### 12.1 — Commande d'achat 1 (Ali, Samsung)
+POST {{baseUrl}}/commandes-achat
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "fournisseurId": 1,
+  "tvaPercent": 18.00,
+  "notes": "Réapprovisionnement chargeurs",
+  "lignes": [
+    { "produitId": 1, "quantite": 20, "prixAchatUnitaire": 10000.00 }
+  ]
+}
+
+### 12.2 — Commande d'achat 1 → COMMANDEE
+PATCH {{baseUrl}}/commandes-achat/1/statut/COMMANDEE
+Authorization: Bearer {{aliToken}}
+
+### 12.3 — Commande d'achat 1 → RECUE (stock augmenté)
+PATCH {{baseUrl}}/commandes-achat/1/statut/RECUE
+Authorization: Bearer {{aliToken}}
+
+
+### =========================================================
+### ÉTAPE 13 — RETOURS (USER uniquement, commande LIVREE)
+### =========================================================
+
+### 13.1 — Créer un retour sur commande 1 (LIVREE)
+POST {{baseUrl}}/retours
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "commandeId": 1,
+  "motif": "Produit défectueux",
+  "notes": "Le chargeur ne fonctionne pas",
+  "lignes": [
+    { "produitId": 1, "quantite": 1, "raison": "Ne charge pas" }
+  ]
+}
+
+### 13.2 — Retour 1 → ACCEPTE
+PATCH {{baseUrl}}/retours/1/statut?statut=ACCEPTE
+Authorization: Bearer {{aliToken}}
+
+### 13.3 — Retour 1 → RECU (stock restitué)
+PATCH {{baseUrl}}/retours/1/statut?statut=RECU
+Authorization: Bearer {{aliToken}}
+
+### 13.4 — Retour 1 → REMBOURSE
+PATCH {{baseUrl}}/retours/1/statut?statut=REMBOURSE
+Authorization: Bearer {{aliToken}}
+
+
+### =========================================================
+### ÉTAPE 14 — VÉRIFICATIONS (Dashboard, ADMIN)
+### =========================================================
+
+### 14.1 — Stats globales
+GET {{baseUrl}}/dashboard/stats
+Authorization: Bearer {{adminToken}}
+
+### 14.2 — Top produits
+GET {{baseUrl}}/dashboard/top-produits?limit=5
+Authorization: Bearer {{adminToken}}
+
+### 14.3 — Top clients
+GET {{baseUrl}}/dashboard/top-clients?limit=5
+Authorization: Bearer {{adminToken}}
+
+### 14.4 — CA mensuel
+GET {{baseUrl}}/dashboard/ca-mensuel
+Authorization: Bearer {{adminToken}}
+
+
+### =========================================================
+### ÉTAPE 15 — TEST DES RÈGLES MÉTIER
+### =========================================================
+
+### 15.1 — SELLER ne peut PAS créer un client (403)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Test",
+  "prenom": "Seller",
+  "email": "test.seller@example.com",
+  "actif": true
+}
+
+### 15.2 — SELLER peut VOIR les clients du patron (200)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{fatouToken}}
+
+### 15.3 — SELLER ne peut PAS créer une catégorie (403)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{ "nom": "Test Seller", "slug": "test-seller" }
+
+### 15.4 — USER ne peut PAS créer une catégorie (403)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{ "nom": "Test User", "slug": "test-user" }
+
+### 15.5 — ADMIN peut créer une catégorie (201)
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{adminToken}}
+
+{ "nom": "Test Admin", "slug": "test-admin" }
