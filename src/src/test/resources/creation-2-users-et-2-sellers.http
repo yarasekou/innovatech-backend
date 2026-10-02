@@ -72,6 +72,10 @@ Content-Type: application/json
 GET {{baseUrl}}/paiements
 Authorization: Bearer {{tokenFatou}}
 
+### Fournisseurs
+GET {{baseUrl}}/fournisseurs
+Authorization: Bearer {{tokenFatou}}
+
 ### 3.2 — Login Bouba
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -88,6 +92,10 @@ Content-Type: application/json
 
 ###
 GET {{baseUrl}}/paiements
+Authorization: Bearer {{tokenBouba}}
+
+### Fournisseurs
+GET {{baseUrl}}/fournisseurs
 Authorization: Bearer {{tokenBouba}}
 
 ### =========================================================
@@ -140,6 +148,10 @@ Content-Type: application/json
     client.log("✅ Token Ali capturé");
 %}
 
+### Fournisseurs
+GET {{baseUrl}}/fournisseurs
+Authorization: Bearer {{tokenAli}}
+
 ### 6.2 — Login Moussa
 POST {{baseUrl}}/auth/login
 Content-Type: application/json
@@ -153,6 +165,10 @@ Content-Type: application/json
     client.global.set("tokenMoussa", response.body.token);
     client.log("✅ Token Moussa capturé");
 %}
+
+### Fournisseurs
+GET {{baseUrl}}/fournisseurs
+Authorization: Bearer {{tokenMoussa}}
 
 
 ### =========================================================

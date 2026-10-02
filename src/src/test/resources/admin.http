@@ -337,36 +337,27 @@ Authorization: Bearer {{token}}
 { "nom": "Développement d'applications", "slug": "developpement-applications", "parentId": 29 }
 
 
-### Un fournisseur
+### Fournisseurs
+GET {{baseUrl}}/fournisseurs
+Authorization: Bearer {{token}}
 
-POST {{baseUrl}}/fournisseurs
-Content-Type: application/json
-Authorization: Bearer {{tokenYara}}
-
-{
-  "code": "FOUR-001",
-  "nom": "Samsung France",
-  "email": "contact@samsung.fr",
-  "pays": "France",
-  "contactNom": "Jean Dupont"
-}
 
 ###
 GET {{baseUrl}}/commandes-achat
-Authorization: Bearer {{tokenYara}}
+Authorization: Bearer {{token}}
 
 ### Stats globales (admin)
 GET {{baseUrl}}/dashboard/stats
-Authorization: Bearer {{tokenYara}}
+Authorization: Bearer {{token}}
 
 ### Top produits
 GET {{baseUrl}}/dashboard/top-produits?limit=5
-Authorization: Bearer {{tokenYara}}
+Authorization: Bearer {{token}}
 
 ### Top clients
 GET {{baseUrl}}/dashboard/top-clients?limit=5
-Authorization: Bearer {{tokenYara}}
+Authorization: Bearer {{token}}
 
 ###  CA mensuel
 GET {{baseUrl}}/dashboard/ca-mensuel
-Authorization: Bearer {{tokenYara}}
+Authorization: Bearer {{token}}

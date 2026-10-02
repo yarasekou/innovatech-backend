@@ -81,18 +81,12 @@ public class FournisseurService {
     }
 
     public FournisseurResponseDTO findByCode(String code) {
-        // Pour un user : chercher par code ET user
-        if (!SecurityUtils.isAdmin()) {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            Fournisseur fournisseur = fournisseurRepository.findByCodeAndUserId(code, dataOwnerId)
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Fournisseur avec code " + code + " introuvable"));
-            return fournisseurMapper.toResponseDTO(fournisseur);
-        }
-
-        // Admin : chercher par code (peut être multiple, mais on prend le 1er)
-        // TODO : adapter si besoin
-        throw new BusinessException("Utilisez l'ID pour rechercher un fournisseur");
+        Long dataOwnerId = getCurrentDataOwnerId();
+        Fournisseur fournisseur = fournisseurRepository
+                .findByCodeAndUserIdWithUser(code, dataOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Fournisseur avec code " + code + " introuvable"));
+        return fournisseurMapper.toResponseDTO(fournisseur);
     }
 
     public List<FournisseurResponseDTO> search(String query) {
@@ -173,7 +167,7 @@ public class FournisseurService {
 
         Long ownerId = existing.getUser() != null ? existing.getUser().getId() : null;
 
-        // Vérifier unicité si changé
+        // Vérifier unicité code (si changé)
         if (!existing.getCode().equals(dto.getCode())
                 && ownerId != null
                 && fournisseurRepository.existsByCodeAndUserId(dto.getCode(), ownerId)) {
@@ -181,6 +175,7 @@ public class FournisseurService {
                     "Vous avez déjà un fournisseur avec le code " + dto.getCode());
         }
 
+        // Vérifier unicité email (si changé)
         if (!existing.getEmail().equals(dto.getEmail())
                 && ownerId != null
                 && fournisseurRepository.existsByEmailAndUserId(dto.getEmail(), ownerId)) {
@@ -218,6 +213,7 @@ public class FournisseurService {
         }
 
         fournisseurRepository.delete(fournisseur);
+        log.info("Fournisseur {} supprimé", fournisseur.getCode());
     }
 
     @Transactional

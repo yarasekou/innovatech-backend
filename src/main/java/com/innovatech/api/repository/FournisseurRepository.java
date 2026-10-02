@@ -16,17 +16,19 @@ public interface FournisseurRepository extends JpaRepository<Fournisseur, Long> 
     // Unicité par user
     // -----------------------------------------
     Optional<Fournisseur> findByCodeAndUserId(String code, Long userId);
+
     Optional<Fournisseur> findByEmailAndUserId(String email, Long userId);
+
     boolean existsByCodeAndUserId(String code, Long userId);
+
     boolean existsByEmailAndUserId(String email, Long userId);
 
     // -----------------------------------------
     // Par user
     // -----------------------------------------
     List<Fournisseur> findByUserId(Long userId);
+
     List<Fournisseur> findByUserIdAndActifTrue(Long userId);
-    List<Fournisseur> findByUserIdAndPaysIgnoreCase(Long userId, String pays);
-    List<Fournisseur> findByUserIdAndNomContainingIgnoreCase(Long userId, String nom);
 
     // -----------------------------------------
     // Avec JOIN FETCH (évite N+1)
@@ -59,4 +61,9 @@ public interface FournisseurRepository extends JpaRepository<Fournisseur, Long> 
             "WHERE f.user.id = :userId AND LOWER(f.pays) = LOWER(:pays)")
     List<Fournisseur> findByUserIdAndPays(@Param("userId") Long userId,
                                           @Param("pays") String pays);
+
+    @Query("SELECT f FROM Fournisseur f LEFT JOIN FETCH f.user " +
+            "WHERE f.user.id = :userId AND f.code = :code")
+    Optional<Fournisseur> findByCodeAndUserIdWithUser(@Param("code") String code,
+                                                      @Param("userId") Long userId);
 }

@@ -37,9 +37,6 @@ public class Fournisseur {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Code unique du fournisseur (ex: FOUR-001).
-     */
     @Column(name = "code", nullable = false, length = 50)
     private String code;
 
@@ -64,11 +61,18 @@ public class Fournisseur {
     @Column(name = "siret", length = 14)
     private String siret;
 
-    /**
-     * Nom de la personne à contacter chez le fournisseur.
-     */
     @Column(name = "contact_nom", length = 150)
     private String contactNom;
+
+    /**
+     * Propriétaire du fournisseur (le USER qui l'a créé).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "user_id",
+            foreignKey = @ForeignKey(name = "fk_fournisseur_user")
+    )
+    private User user;
 
     @Column(name = "actif", nullable = false)
     @Builder.Default
@@ -81,11 +85,4 @@ public class Fournisseur {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "user_id",
-            foreignKey = @ForeignKey(name = "fk_fournisseur_user")
-    )
-    private User user;
 }

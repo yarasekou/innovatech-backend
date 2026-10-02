@@ -22,11 +22,13 @@ public class FournisseurResponseDTO {
     private String siret;
     private String contactNom;
     private boolean actif;
-    private LocalDateTime dateCreation;
-    private LocalDateTime dateModification;
 
+    // Propriétaire
     private Long userId;
     private String userEmail;
     private String userNom;
     private String userPrenom;
+
+    private LocalDateTime dateCreation;
+    private LocalDateTime dateModification;
 }

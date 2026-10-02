@@ -3,9 +3,8 @@ package com.innovatech.api.mapper;
 import com.innovatech.api.dto.FournisseurRequestDTO;
 import com.innovatech.api.dto.FournisseurResponseDTO;
 import com.innovatech.api.entity.Fournisseur;
-import org.springframework.stereotype.Component;
 import com.innovatech.api.entity.User;
-
+import org.springframework.stereotype.Component;
 
 @Component
 public class FournisseurMapper {
@@ -39,7 +38,7 @@ public class FournisseurMapper {
         entity.setSiret(dto.getSiret());
         entity.setContactNom(dto.getContactNom());
         entity.setActif(dto.getActif() != null ? dto.getActif() : entity.isActif());
-        // user inchangé
+        // ⚠️ Le user ne change PAS en update
     }
 
     public FournisseurResponseDTO toResponseDTO(Fournisseur entity) {
