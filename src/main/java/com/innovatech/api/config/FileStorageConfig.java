@@ -25,11 +25,14 @@ public class FileStorageConfig {
     @PostConstruct
     public void init() {
         try {
-            Path uploadPath = Paths.get(uploadDir, "produits");
-            Files.createDirectories(uploadPath);
-            log.info("Dossier d'upload prêt : {}", uploadPath.toAbsolutePath());
+            Path produitsPath = Paths.get(uploadDir, "produits");
+            Path entreprisesPath = Paths.get(uploadDir, "entreprises");
+            Files.createDirectories(produitsPath);
+            Files.createDirectories(entreprisesPath);
+            log.info("Dossiers d'upload prêts : {} et {}",
+                    produitsPath.toAbsolutePath(), entreprisesPath.toAbsolutePath());
         } catch (IOException e) {
-            throw new RuntimeException("Impossible de créer le dossier d'upload", e);
+            throw new RuntimeException("Impossible de créer les dossiers d'upload", e);
         }
     }
 }

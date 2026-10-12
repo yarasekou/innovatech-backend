@@ -27,7 +27,7 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"password", "patron", "employes"})
+@ToString(exclude = {"password", "patron", "employes", "entreprise"})
 public class User {
 
     @Id
@@ -94,6 +94,21 @@ public class User {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    // -----------------------------------------
+    // Entreprise (1-1)
+    // -----------------------------------------
+
+    /**
+     * L'entreprise du USER (null tant qu'elle n'est pas créée).
+     */
+    @OneToOne(
+            mappedBy = "user",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    private Entreprise entreprise;
 
     // -----------------------------------------
     // Méthodes utilitaires

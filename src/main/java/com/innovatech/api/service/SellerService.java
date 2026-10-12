@@ -7,6 +7,7 @@ import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.UserMapper;
+import com.innovatech.api.repository.EntrepriseRepository;
 import com.innovatech.api.repository.UserRepository;
 import com.innovatech.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +36,7 @@ public class SellerService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final EntrepriseRepository entrepriseRepository;
 
     // -----------------------------------------
     // CREATE — Un USER crée un SELLER
@@ -43,6 +45,12 @@ public class SellerService {
     @Transactional
     public UserResponseDTO createSeller(CreateSellerDTO dto) {
         User patron = getCurrentUser();
+
+        // ⚠️ Le patron doit avoir une entreprise
+        if (!entrepriseRepository.existsByUserId(patron.getId())) {
+            throw new BusinessException(
+                    "Vous devez créer votre entreprise avant de pouvoir ajouter des SELLERs");
+        }
 
         // Vérifier que le créateur est bien un USER (pas SELLER, pas ADMIN)
         if (patron.getRoles().contains(Role.ROLE_SELLER)) {
