@@ -14,14 +14,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/dashboard")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Dashboard", description = "Statistiques et indicateurs (ADMIN)")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
+@Tag(name = "Dashboard", description = "Statistiques (scopées par entreprise)")
 public class DashboardController {
 
     private final DashboardService dashboardService;
 
     @GetMapping("/stats")
-    @Operation(summary = "Statistiques globales")
+    @Operation(summary = "Statistiques globales (SUPER_ADMIN) ou de mon entreprise")
     public ResponseEntity<DashboardStatsDTO> getStats() {
         return ResponseEntity.ok(dashboardService.getStats());
     }

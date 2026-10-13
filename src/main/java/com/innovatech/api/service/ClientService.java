@@ -3,6 +3,7 @@ package com.innovatech.api.service;
 import com.innovatech.api.dto.ClientRequestDTO;
 import com.innovatech.api.dto.ClientResponseDTO;
 import com.innovatech.api.entity.Client;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.Role;
 import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
@@ -19,6 +20,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Service de gestion des clients.
+ * <p>
+ * Filtrage triple :
+ * <ul>
+ *   <li>ADMIN  → tous les clients de l'entreprise</li>
+ *   <li>USER   → seulement SA boutique</li>
+ *   <li>SELLER → la boutique de son patron</li>
+ * </ul>
+ * <p>
+ * ⚠️ Un ADMIN ne crée PAS de client.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -31,50 +44,62 @@ public class ClientService {
     private final ClientMapper clientMapper;
 
     // -----------------------------------------
-    // READ — avec filtrage par user/seller/admin
+    // READ
     // -----------------------------------------
 
     public List<ClientResponseDTO> findAll() {
-        if (SecurityUtils.isAdmin()) {
-            return clientRepository.findAllWithUser()
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return clientRepository.findByEntrepriseIdWithDetails(entreprise.getId())
                     .stream()
                     .map(clientMapper::toResponseDTO)
                     .toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return clientRepository.findByUserIdWithUser(dataOwnerId)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return clientRepository.findByEntrepriseIdAndUserIdWithDetails(
+                        entreprise.getId(), shopOwnerId)
                 .stream()
                 .map(clientMapper::toResponseDTO)
                 .toList();
     }
 
     public List<ClientResponseDTO> findAllActifs() {
-        if (SecurityUtils.isAdmin()) {
-            // Pour admin : on filtre actif=true
-            return clientRepository.findAllWithUser()
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return clientRepository.findByEntrepriseIdAndActifTrueWithDetails(entreprise.getId())
                     .stream()
-                    .filter(Client::isActif)
                     .map(clientMapper::toResponseDTO)
                     .toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return clientRepository.findByUserIdAndActifTrueWithUser(dataOwnerId)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return clientRepository.findByEntrepriseIdAndUserIdAndActifTrueWithDetails(
+                        entreprise.getId(), shopOwnerId)
                 .stream()
                 .map(clientMapper::toResponseDTO)
                 .toList();
     }
 
     public ClientResponseDTO findById(Long id) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
         Client client;
 
-        if (SecurityUtils.isAdmin()) {
-            client = clientRepository.findByIdWithUser(id)
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            client = clientRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Client", id));
         } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            client = clientRepository.findByIdAndUserIdWithUser(id, dataOwnerId)
+            Long shopOwnerId = resolveShopOwnerId(user);
+            client = clientRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Client", id));
         }
 
@@ -82,39 +107,52 @@ public class ClientService {
     }
 
     public List<ClientResponseDTO> search(String query) {
-        if (SecurityUtils.isAdmin()) {
-            return clientRepository.findAllWithUser()
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return clientRepository.searchByEntrepriseId(entreprise.getId(), query)
                     .stream()
-                    .filter(c -> c.getNom().toLowerCase().contains(query.toLowerCase())
-                            || c.getPrenom().toLowerCase().contains(query.toLowerCase()))
                     .map(clientMapper::toResponseDTO)
                     .toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return clientRepository.searchByUserId(dataOwnerId, query)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return clientRepository.searchByEntrepriseIdAndUserId(
+                        entreprise.getId(), shopOwnerId, query)
                 .stream()
                 .map(clientMapper::toResponseDTO)
                 .toList();
     }
 
     // -----------------------------------------
-    // CREATE — user injecté depuis le JWT
+    // CREATE — USER / SELLER uniquement
     // -----------------------------------------
 
     @Transactional
     public ClientResponseDTO create(ClientRequestDTO dto, String userEmail) {
-        User user = resolveUser(userEmail);
-        Long ownerId = user.getId();
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (clientRepository.existsByEmailAndUserId(dto.getEmail(), ownerId)) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException(
+                    "Un ADMIN ne crée pas de clients. Créez un USER pour cela.");
+        }
+
+        Long shopOwnerId = resolveShopOwnerId(user);
+        User shopOwner = userRepository.findById(shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
+
+        if (clientRepository.existsByEmailAndEntrepriseIdAndUserId(
+                dto.getEmail(), entreprise.getId(), shopOwnerId)) {
             throw new BusinessException(
                     "Vous avez déjà un client avec l'email " + dto.getEmail());
         }
 
-        Client client = clientMapper.toEntity(dto, user);
+        Client client = clientMapper.toEntity(dto, entreprise, shopOwner);
         Client saved = clientRepository.save(client);
-        log.info("Client {} créé par {}", saved.getEmail(), userEmail);
+        log.info("Client {} créé par {} pour la boutique de {} (entreprise: {})",
+                saved.getEmail(), userEmail, shopOwner.getEmail(), entreprise.getNom());
         return clientMapper.toResponseDTO(saved);
     }
 
@@ -124,22 +162,16 @@ public class ClientService {
 
     @Transactional
     public ClientResponseDTO update(Long id, ClientRequestDTO dto) {
-        Client existing;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            existing = clientRepository.findByIdWithUser(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Client", id));
-        } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            existing = clientRepository.findByIdAndUserIdWithUser(id, dataOwnerId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Client", id));
-        }
+        Client existing = findMyClient(user, entreprise, id);
 
-        // Vérifier unicité email si changé
-        Long ownerId = existing.getUser() != null ? existing.getUser().getId() : null;
-        if (!existing.getEmail().equals(dto.getEmail())
-                && ownerId != null
-                && clientRepository.existsByEmailAndUserId(dto.getEmail(), ownerId)) {
+        Long shopOwnerId = existing.getUser() != null ? existing.getUser().getId() : null;
+        if (shopOwnerId != null
+                && !existing.getEmail().equals(dto.getEmail())
+                && clientRepository.existsByEmailAndEntrepriseIdAndUserId(
+                dto.getEmail(), entreprise.getId(), shopOwnerId)) {
             throw new BusinessException(
                     "Vous avez déjà un client avec l'email " + dto.getEmail());
         }
@@ -150,21 +182,15 @@ public class ClientService {
     }
 
     // -----------------------------------------
-    // DELETE
+    // DELETE / DEACTIVATE
     // -----------------------------------------
 
     @Transactional
     public void delete(Long id) {
-        Client client;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            client = clientRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Client", id));
-        } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            client = clientRepository.findByIdAndUserIdWithUser(id, dataOwnerId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Client", id));
-        }
+        Client client = findMyClient(user, entreprise, id);
 
         long nbCommandes = commandeRepository.countByClientId(id);
         if (nbCommandes > 0) {
@@ -179,17 +205,10 @@ public class ClientService {
 
     @Transactional
     public void deactivate(Long id) {
-        Client client;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            client = clientRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Client", id));
-        } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            client = clientRepository.findByIdAndUserIdWithUser(id, dataOwnerId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Client", id));
-        }
-
+        Client client = findMyClient(user, entreprise, id);
         client.setActif(false);
         clientRepository.save(client);
     }
@@ -198,41 +217,44 @@ public class ClientService {
     // MÉTHODES PRIVÉES
     // -----------------------------------------
 
-    private User resolveUser(String userEmail) {
-        if (userEmail == null) {
-            throw new BusinessException("Utilisateur non authentifié");
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
+            if (user.getPatron() == null) {
+                throw new BusinessException("Ce SELLER n'a pas de patron assigné");
+            }
+            return user.getPatron().getId();
         }
-        return userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + userEmail));
+        return user.getId();
     }
 
-    /**
-     * Retourne l'ID du propriétaire des données à filtrer.
-     * <p>
-     * - ADMIN  : ne devrait pas arriver ici (on filtre avant)
-     * - USER   : son ID
-     * - SELLER : l'ID de son patron
-     */
-    private Long getCurrentDataOwnerId() {
+    private Client findMyClient(User user, Entreprise entreprise, Long id) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return clientRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Client", id));
+        }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return clientRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        id, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", id));
+    }
+
+    private Entreprise getCurrentEntreprise(User user) {
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+        return user.getEntreprise();
+    }
+
+    private User getCurrentUser() {
         String email = SecurityUtils.getCurrentUserEmail();
         if (email == null) {
             throw new BusinessException("Utilisateur non authentifié");
         }
-
-        User user = userRepository.findByEmail(email)
+        return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User introuvable avec l'email : " + email));
-
-        // Si SELLER → retourner l'ID du patron
-        if (user.getRoles().contains(Role.ROLE_SELLER)) {
-            if (user.getPatron() == null) {
-                throw new BusinessException(
-                        "Ce SELLER n'a pas de patron assigné");
-            }
-            return user.getPatron().getId();
-        }
-
-        return user.getId();
     }
 }

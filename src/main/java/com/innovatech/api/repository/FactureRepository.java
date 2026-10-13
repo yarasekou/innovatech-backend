@@ -14,58 +14,98 @@ import java.util.Optional;
 @Repository
 public interface FactureRepository extends JpaRepository<Facture, Long> {
 
-    Optional<Facture> findByNumero(String numero);
+    // -----------------------------------------
+    // Numérotation
+    // -----------------------------------------
 
-    boolean existsByNumero(String numero);
+    @Query("SELECT COUNT(f) FROM Facture f " +
+            "WHERE YEAR(f.dateEmission) = :annee " +
+            "AND f.entreprise.id = :entrepriseId " +
+            "AND f.user.id = :userId")
+    long countByAnneeAndEntrepriseIdAndUserId(
+            @Param("annee") int annee,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    // -----------------------------------------
+    // Par commande
+    // -----------------------------------------
 
     Optional<Facture> findByCommandeId(Long commandeId);
 
     boolean existsByCommandeId(Long commandeId);
 
-    @Query("SELECT COUNT(f) FROM Facture f WHERE YEAR(f.dateEmission) = :annee")
-    long countByAnnee(@Param("annee") int annee);
+    // -----------------------------------------
+    // Par entreprise (ADMIN)
+    // -----------------------------------------
+
+    @Query("SELECT f FROM Facture f " +
+            "JOIN FETCH f.commande " +
+            "JOIN FETCH f.client " +
+            "JOIN FETCH f.user " +
+            "WHERE f.entreprise.id = :entrepriseId " +
+            "ORDER BY f.dateEmission DESC")
+    List<Facture> findByEntrepriseIdWithDetails(@Param("entrepriseId") Long entrepriseId);
+
+    @Query("SELECT f FROM Facture f " +
+            "JOIN FETCH f.commande " +
+            "JOIN FETCH f.client " +
+            "JOIN FETCH f.user " +
+            "WHERE f.id = :id AND f.entreprise.id = :entrepriseId")
+    Optional<Facture> findByIdAndEntrepriseIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId);
+
+    // -----------------------------------------
+    // Par entreprise + user (boutique)
+    // -----------------------------------------
+
+    @Query("SELECT f FROM Facture f " +
+            "JOIN FETCH f.commande " +
+            "JOIN FETCH f.client " +
+            "JOIN FETCH f.user " +
+            "WHERE f.entreprise.id = :entrepriseId " +
+            "AND f.user.id = :userId " +
+            "ORDER BY f.dateEmission DESC")
+    List<Facture> findByEntrepriseIdAndUserIdWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    @Query("SELECT f FROM Facture f " +
+            "JOIN FETCH f.commande " +
+            "JOIN FETCH f.client " +
+            "JOIN FETCH f.user " +
+            "WHERE f.id = :id " +
+            "AND f.entreprise.id = :entrepriseId " +
+            "AND f.user.id = :userId")
+    Optional<Facture> findByIdAndEntrepriseIdAndUserIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    // -----------------------------------------
+    // Détails génériques
+    // -----------------------------------------
+
+    @Query("SELECT f FROM Facture f " +
+            "JOIN FETCH f.commande " +
+            "JOIN FETCH f.client " +
+            "JOIN FETCH f.user " +
+            "WHERE f.id = :id")
+    Optional<Facture> findByIdWithDetails(@Param("id") Long id);
 
     // -----------------------------------------
     // Par statut
     // -----------------------------------------
+
     List<Facture> findByStatut(StatutFacture statut);
 
-    /**
-     * Factures dont la date d'échéance est dépassée et qui ne sont pas payées.
-     */
     @Query("SELECT f FROM Facture f " +
             "WHERE f.statut IN ('EMISE', 'EN_RETARD') " +
             "AND f.dateEcheance < :today")
     List<Facture> findFacturesEnRetard(@Param("today") LocalDate today);
 
-    // -----------------------------------------
-    // Avec JOIN FETCH
-    // -----------------------------------------
-    @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande c " +
-            "JOIN FETCH f.client " +
-            "WHERE f.id = :id")
-    Optional<Facture> findByIdWithDetails(@Param("id") Long id);
-
-    @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande " +
-            "JOIN FETCH f.client " +
-            "ORDER BY f.dateEmission DESC")
-    List<Facture> findAllWithDetails();
-
-    @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande c " +
-            "JOIN FETCH f.client " +
-            "WHERE c.vendeur.id = :vendeurId " +
-            "ORDER BY f.dateEmission DESC")
-    List<Facture> findByVendeurIdWithDetails(@Param("vendeurId") Long vendeurId);
-
-    @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande c " +
-            "JOIN FETCH f.client " +
-            "WHERE f.id = :id AND c.vendeur.id = :vendeurId")
-    Optional<Facture> findByIdAndVendeurIdWithDetails(@Param("id") Long id,
-                                                      @Param("vendeurId") Long vendeurId);
-
     long countByStatut(StatutFacture statut);
+    long countByEntrepriseId(Long entrepriseId);
+    long countByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
 }

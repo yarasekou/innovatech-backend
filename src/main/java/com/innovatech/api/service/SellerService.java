@@ -7,7 +7,6 @@ import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.UserMapper;
-import com.innovatech.api.repository.EntrepriseRepository;
 import com.innovatech.api.repository.UserRepository;
 import com.innovatech.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -20,13 +19,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * Service de gestion des SELLERs par un USER.
- * <p>
- * - Un USER peut créer/supprimer SES SELLERs
- * - Un SELLER ne voit que son profil
- * - L'ADMIN ne peut pas utiliser ce service (utiliser /admin)
- */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -36,7 +28,6 @@ public class SellerService {
     private final UserRepository userRepository;
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
-    private final EntrepriseRepository entrepriseRepository;
 
     // -----------------------------------------
     // CREATE — Un USER crée un SELLER
@@ -46,29 +37,25 @@ public class SellerService {
     public UserResponseDTO createSeller(CreateSellerDTO dto) {
         User patron = getCurrentUser();
 
-        // ⚠️ Le patron doit avoir une entreprise
-        if (!entrepriseRepository.existsByUserId(patron.getId())) {
+        if (!patron.hasRole(Role.ROLE_USER)) {
+            throw new BusinessException("Seul un USER (manager) peut créer un SELLER");
+        }
+
+        if (patron.getEntreprise() == null) {
             throw new BusinessException(
-                    "Vous devez créer votre entreprise avant de pouvoir ajouter des SELLERs");
+                    "Vous devez être rattaché à une entreprise avant de créer des SELLERs");
         }
 
-        // Vérifier que le créateur est bien un USER (pas SELLER, pas ADMIN)
-        if (patron.getRoles().contains(Role.ROLE_SELLER)) {
-            throw new BusinessException("Un SELLER ne peut pas créer d'autres SELLERs");
-        }
-        if (patron.getRoles().contains(Role.ROLE_ADMIN)) {
-            throw new BusinessException("Un ADMIN ne peut pas créer de SELLER via ce endpoint. Utilisez /admin");
-        }
-
-        // Vérifier unicité
         if (userRepository.existsByEmail(dto.getEmail())) {
-            throw new BusinessException("Un utilisateur avec l'email " + dto.getEmail() + " existe déjà");
+            throw new BusinessException(
+                    "Un utilisateur avec l'email " + dto.getEmail() + " existe déjà");
         }
         if (userRepository.existsByUsername(dto.getUsername())) {
-            throw new BusinessException("Le nom d'utilisateur " + dto.getUsername() + " est déjà pris");
+            throw new BusinessException(
+                    "Le nom d'utilisateur " + dto.getUsername() + " est déjà pris");
         }
 
-        // Créer le SELLER
+        // ⚠️ HashSet (mutable), PAS Set.of()
         Set<Role> roles = new HashSet<>();
         roles.add(Role.ROLE_SELLER);
 
@@ -80,21 +67,22 @@ public class SellerService {
                 .nom(dto.getNom())
                 .roles(roles)
                 .patron(patron)
+                .entreprise(patron.getEntreprise())
                 .actif(true)
                 .build();
 
         User saved = userRepository.save(seller);
-        log.info("SELLER {} créé par le USER {}", saved.getEmail(), patron.getEmail());
+        log.info("SELLER {} créé par {} (entreprise: {})",
+                saved.getEmail(), patron.getEmail(), patron.getEntreprise().getNom());
         return userMapper.toResponseDTO(saved);
     }
 
     // -----------------------------------------
-    // READ — Un USER voit ses SELLERs
+    // READ
     // -----------------------------------------
 
     public List<UserResponseDTO> findMySellers() {
         User patron = getCurrentUser();
-
         return userRepository.findByPatronId(patron.getId())
                 .stream()
                 .map(userMapper::toResponseDTO)
@@ -103,12 +91,11 @@ public class SellerService {
 
     public UserResponseDTO findMySellerById(Long sellerId) {
         User patron = getCurrentUser();
-
         User seller = userRepository.findById(sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seller", sellerId));
 
-        // Vérifier que le SELLER appartient bien à ce patron
-        if (seller.getPatron() == null || !seller.getPatron().getId().equals(patron.getId())) {
+        if (seller.getPatron() == null
+                || !seller.getPatron().getId().equals(patron.getId())) {
             throw new ResourceNotFoundException("Seller", sellerId);
         }
 
@@ -116,38 +103,17 @@ public class SellerService {
     }
 
     // -----------------------------------------
-    // DELETE — Un USER supprime son SELLER
-    // -----------------------------------------
-
-    @Transactional
-    public void deleteSeller(Long sellerId) {
-        User patron = getCurrentUser();
-
-        User seller = userRepository.findById(sellerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Seller", sellerId));
-
-        // Vérifier que le SELLER appartient bien à ce patron
-        if (seller.getPatron() == null || !seller.getPatron().getId().equals(patron.getId())) {
-            throw new ResourceNotFoundException("Seller", sellerId);
-        }
-
-        // Supprimer définitivement
-        userRepository.delete(seller);
-        log.info("SELLER {} supprimé par {}", seller.getEmail(), patron.getEmail());
-    }
-
-    // -----------------------------------------
-    // TOGGLE ACTIF — Un USER désactive son SELLER
+    // UPDATE
     // -----------------------------------------
 
     @Transactional
     public UserResponseDTO toggleSellerActif(Long sellerId) {
         User patron = getCurrentUser();
-
         User seller = userRepository.findById(sellerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Seller", sellerId));
 
-        if (seller.getPatron() == null || !seller.getPatron().getId().equals(patron.getId())) {
+        if (seller.getPatron() == null
+                || !seller.getPatron().getId().equals(patron.getId())) {
             throw new ResourceNotFoundException("Seller", sellerId);
         }
 
@@ -158,12 +124,28 @@ public class SellerService {
     }
 
     // -----------------------------------------
+    // DELETE
+    // -----------------------------------------
+
+    @Transactional
+    public void deleteSeller(Long sellerId) {
+        User patron = getCurrentUser();
+        User seller = userRepository.findById(sellerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Seller", sellerId));
+
+        if (seller.getPatron() == null
+                || !seller.getPatron().getId().equals(patron.getId())) {
+            throw new ResourceNotFoundException("Seller", sellerId);
+        }
+
+        userRepository.delete(seller);
+        log.info("SELLER {} supprimé par {}", seller.getEmail(), patron.getEmail());
+    }
+
+    // -----------------------------------------
     // MÉTHODE PRIVÉE
     // -----------------------------------------
 
-    /**
-     * Récupère le USER actuellement connecté.
-     */
     private User getCurrentUser() {
         String email = SecurityUtils.getCurrentUserEmail();
         if (email == null) {

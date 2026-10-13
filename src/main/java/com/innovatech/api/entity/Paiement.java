@@ -11,17 +11,24 @@ import java.time.LocalDateTime;
 
 /**
  * Paiement reçu pour une commande.
+ * <p>
+ * Scopé par entreprise ET par boutique (user).
+ * Le numéro est unique par (entreprise_id, user_id).
  */
 @Entity
 @Table(
         name = "paiements",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_paiement_numero", columnNames = "numero")
+                @UniqueConstraint(
+                        name = "uk_paiement_numero_entreprise_user",
+                        columnNames = {"numero", "entreprise_id", "user_id"}
+                )
         },
         indexes = {
                 @Index(name = "idx_paiement_commande", columnList = "commande_id"),
                 @Index(name = "idx_paiement_statut", columnList = "statut"),
                 @Index(name = "idx_paiement_date", columnList = "date_paiement"),
+                @Index(name = "idx_paiement_entreprise", columnList = "entreprise_id"),
                 @Index(name = "idx_paiement_user", columnList = "user_id")
         }
 )
@@ -31,7 +38,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"commande", "user"})
+@ToString(exclude = {"commande", "user", "entreprise"})
 public class Paiement {
 
     @Id
@@ -41,6 +48,26 @@ public class Paiement {
     @Column(name = "numero", nullable = false, length = 30)
     private String numero;
 
+    // -----------------------------------------
+    // Relations obligatoires
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_paiement_entreprise")
+    )
+    private Entreprise entreprise;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "user_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_paiement_user")
+    )
+    private User user;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "commande_id",
@@ -48,6 +75,10 @@ public class Paiement {
             foreignKey = @ForeignKey(name = "fk_paiement_commande")
     )
     private Commande commande;
+
+    // -----------------------------------------
+    // Données du paiement
+    // -----------------------------------------
 
     @Column(name = "montant", nullable = false, precision = 12, scale = 2)
     private BigDecimal montant;
@@ -78,11 +109,4 @@ public class Paiement {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "user_id",
-            foreignKey = @ForeignKey(name = "fk_paiement_user")
-    )
-    private User user;
 }

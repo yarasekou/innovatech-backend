@@ -1,0 +1,877 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### ÉTAPE 1 — SUPER_ADMIN (bootstrap)
+### =========================================================
+
+### 1.1 — Créer le SUPER_ADMIN (une seule fois)
+POST {{baseUrl}}/auth/setup-super-admin
+Content-Type: application/json
+
+{
+  "username": "yara",
+  "email": "yara@innovatech.com",
+  "password": "password123",
+  "prenom": "Yara",
+  "nom": "Sékou",
+  "secretKey": "innova-setup-key-2026"
+}
+
+> {%
+    client.global.set("yaraToken", response.body.token);
+    client.log("✅ SUPER_ADMIN Yara");
+%}
+
+
+### =========================================================
+### ÉTAPE 2 — ADMINs + Entreprises (3)
+### =========================================================
+
+### 2.1 — Ali (ADMIN)
+POST {{baseUrl}}/auth/register-admin
+Content-Type: application/json
+
+{
+  "username": "ali",
+  "email": "ali@innovatech.com",
+  "password": "password123",
+  "prenom": "Ali",
+  "nom": "Ndiaye",
+  "entreprise": {
+    "nom": "Ali Électronique",
+    "email": "contact@ali-elec.sn",
+    "ville": "Dakar",
+    "pays": "Sénégal",
+    "devise": "XOF",
+    "tvaPercent": 18.00
+  }
+}
+
+> {%
+    client.global.set("aliToken", response.body.token);
+    client.log("✅ ADMIN Ali");
+%}
+
+### 2.2 — Moussa (ADMIN)
+POST {{baseUrl}}/auth/register-admin
+Content-Type: application/json
+
+{
+  "username": "moussa",
+  "email": "moussa@innovatech.com",
+  "password": "password123",
+  "prenom": "Moussa",
+  "nom": "Fall",
+  "entreprise": {
+    "nom": "Fall Informatique",
+    "email": "contact@fall-info.sn",
+    "ville": "Dakar",
+    "pays": "Sénégal",
+    "devise": "XOF",
+    "tvaPercent": 18.00
+  }
+}
+
+> {%
+    client.global.set("moussaToken", response.body.token);
+    client.log("✅ ADMIN Moussa");
+%}
+
+### 2.3 — Awa (ADMIN)
+POST {{baseUrl}}/auth/register-admin
+Content-Type: application/json
+
+{
+  "username": "awa",
+  "email": "awa@innovatech.com",
+  "password": "password123",
+  "prenom": "Awa",
+  "nom": "Diallo",
+  "entreprise": {
+    "nom": "Awa Textile",
+    "email": "contact@awa-textile.sn",
+    "ville": "Saint-Louis",
+    "pays": "Sénégal",
+    "devise": "XOF",
+    "tvaPercent": 18.00
+  }
+}
+
+> {%
+    client.global.set("awaToken", response.body.token);
+    client.log("✅ ADMIN Awa");
+%}
+
+
+### =========================================================
+### ÉTAPE 3 — USERs (5) créés par leur ADMIN
+### =========================================================
+
+### 3.1 — Ali crée Fatou
+POST {{baseUrl}}/users
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "username": "fatou",
+  "email": "fatou@ali-elec.sn",
+  "password": "password123",
+  "prenom": "Fatou",
+  "nom": "Sow"
+}
+
+### 3.2 — Ali crée Bouba
+POST {{baseUrl}}/users
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "username": "bouba",
+  "email": "bouba@ali-elec.sn",
+  "password": "password123",
+  "prenom": "Bouba",
+  "nom": "Diop"
+}
+
+### 3.3 — Moussa crée Ibrahima
+POST {{baseUrl}}/users
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "username": "ibrahima",
+  "email": "ibrahima@fall-info.sn",
+  "password": "password123",
+  "prenom": "Ibrahima",
+  "nom": "Fall"
+}
+
+### 3.4 — Moussa crée Coumba
+POST {{baseUrl}}/users
+Content-Type: application/json
+Authorization: Bearer {{moussaToken}}
+
+{
+  "username": "coumba",
+  "email": "coumba@fall-info.sn",
+  "password": "password123",
+  "prenom": "Coumba",
+  "nom": "Sow"
+}
+
+### 3.5 — Awa crée Ousmane
+POST {{baseUrl}}/users
+Content-Type: application/json
+Authorization: Bearer {{awaToken}}
+
+{
+  "username": "ousmane",
+  "email": "ousmane@awa-textile.sn",
+  "password": "password123",
+  "prenom": "Ousmane",
+  "nom": "Ba"
+}
+
+
+### =========================================================
+### ÉTAPE 4 — LOGIN des 5 USERs
+### =========================================================
+
+### 4.1 — Fatou
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("fatouToken", response.body.token);
+    client.log("✅ USER Fatou");
+%}
+
+### 4.2 — Bouba
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bouba@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("boubaToken", response.body.token);
+    client.log("✅ USER Bouba");
+%}
+
+### 4.3 — Ibrahima
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ibrahima@fall-info.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("ibrahimaToken", response.body.token);
+    client.log("✅ USER Ibrahima");
+%}
+
+### 4.4 — Coumba
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "coumba@fall-info.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("coumbaToken", response.body.token);
+    client.log("✅ USER Coumba");
+%}
+
+### 4.5 — Ousmane
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ousmane@awa-textile.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("ousmaneToken", response.body.token);
+    client.log("✅ USER Ousmane");
+%}
+
+
+### =========================================================
+### ÉTAPE 5 — CATÉGORIES (par boutique)
+### =========================================================
+
+### 5.1 — Fatou
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Accessoires Fatou",
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouCat", response.body.id);
+%}
+
+### 5.2 — Bouba
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "Accessoires Bouba",
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaCat", response.body.id);
+%}
+
+### 5.3 — Ibrahima
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "nom": "Informatique",
+  "actif": true
+}
+
+> {%
+    client.global.set("ibrahimaCat", response.body.id);
+%}
+
+### 5.4 — Coumba
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "nom": "Accessoires Coumba",
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaCat", response.body.id);
+%}
+
+### 5.5 — Ousmane
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "nom": "Tissus",
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneCat", response.body.id);
+%}
+
+
+### =========================================================
+### ÉTAPE 6 — PRODUITS (par boutique)
+### =========================================================
+
+### 6.1 — Fatou produit 1
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "reference": "FATOU-PROD-001",
+  "nom": "Chargeur Samsung 25W",
+  "prix": 10000.00,
+  "prixAchat": 7000.00,
+  "stock": 20,
+  "categorieId": {{fatouCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouProduit1", response.body.id);
+%}
+
+### 6.2 — Fatou produit 2
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "reference": "FATOU-PROD-002",
+  "nom": "Câble USB-C",
+  "prix": 5000.00,
+  "prixAchat": 3000.00,
+  "stock": 50,
+  "categorieId": {{fatouCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouProduit2", response.body.id);
+%}
+
+### 6.3 — Fatou produit 3
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "reference": "FATOU-PROD-003",
+  "nom": "Écouteurs JBL",
+  "prix": 25000.00,
+  "prixAchat": 18000.00,
+  "stock": 10,
+  "categorieId": {{fatouCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouProduit3", response.body.id);
+%}
+
+### 6.4 — Bouba produit 1
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "reference": "BOUBA-PROD-001",
+  "nom": "Power Bank Xiaomi",
+  "prix": 20000.00,
+  "prixAchat": 15000.00,
+  "stock": 15,
+  "categorieId": {{boubaCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaProduit1", response.body.id);
+%}
+
+### 6.5 — Ibrahima produit 1
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "reference": "IBRA-PROD-001",
+  "nom": "HP Pavilion 15",
+  "prix": 550000.00,
+  "prixAchat": 420000.00,
+  "stock": 5,
+  "categorieId": {{ibrahimaCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ibrahimaProduit1", response.body.id);
+%}
+
+### 6.6 — Ibrahima produit 2
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "reference": "IBRA-PROD-002",
+  "nom": "Écran Dell 24",
+  "prix": 150000.00,
+  "prixAchat": 110000.00,
+  "stock": 8,
+  "categorieId": {{ibrahimaCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ibrahimaProduit2", response.body.id);
+%}
+
+### 6.7 — Coumba produit 1
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "reference": "COUMBA-PROD-001",
+  "nom": "Souris Logitech",
+  "prix": 15000.00,
+  "prixAchat": 10000.00,
+  "stock": 30,
+  "categorieId": {{coumbaCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaProduit1", response.body.id);
+%}
+
+### 6.8 — Ousmane produit 1
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "reference": "OUSMANE-PROD-001",
+  "nom": "Tissu Bazin riche",
+  "prix": 25000.00,
+  "prixAchat": 15000.00,
+  "stock": 40,
+  "categorieId": {{ousmaneCat}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneProduit1", response.body.id);
+%}
+
+
+### =========================================================
+### ÉTAPE 7 — PHOTOS (⚠️ Utilise curl.exe après le .http)
+### =========================================================
+### Voir le script PowerShell en bas du fichier.
+### =========================================================
+
+
+### =========================================================
+### ÉTAPE 8 — CLIENTS (par boutique)
+### =========================================================
+
+### 8.1 — Fatou client 1
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Ndiaye",
+  "prenom": "Moussa",
+  "email": "client1@example.sn",
+  "telephone": "771111111",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouClient1", response.body.id);
+%}
+
+### 8.2 — Fatou client 2
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Diop",
+  "prenom": "Aminata",
+  "email": "client2@example.sn",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouClient2", response.body.id);
+%}
+
+### 8.3 — Bouba client
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "Fall",
+  "prenom": "Ibrahima",
+  "email": "client3@example.sn",
+  "ville": "Thiès",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaClient1", response.body.id);
+%}
+
+### 8.4 — Ibrahima client
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "nom": "Sall",
+  "prenom": "Moussa",
+  "email": "client4@example.sn",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("ibrahimaClient1", response.body.id);
+%}
+
+### 8.5 — Coumba client
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "nom": "Ba",
+  "prenom": "Fatou",
+  "email": "client5@example.sn",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaClient1", response.body.id);
+%}
+
+### 8.6 — Ousmane client
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "nom": "Sy",
+  "prenom": "Awa",
+  "email": "client6@example.sn",
+  "ville": "Saint-Louis",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneClient1", response.body.id);
+%}
+
+
+### =========================================================
+### ÉTAPE 9 — FOURNISSEURS (par boutique)
+### =========================================================
+
+### 9.1 — Fatou fournisseur
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "code": "FOUR-SAM-001",
+  "nom": "Samsung Sénégal (Fatou)",
+  "email": "sam.fatou@x.sn",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouFournisseur", response.body.id);
+%}
+
+### 9.2 — Bouba fournisseur
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "code": "FOUR-SAM-001",
+  "nom": "Samsung Sénégal (Bouba)",
+  "email": "sam.bouba@x.sn",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaFournisseur", response.body.id);
+%}
+
+### 9.3 — Ibrahima fournisseur
+POST {{baseUrl}}/fournisseurs
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "code": "FOUR-DELL-001",
+  "nom": "Dell Sénégal",
+  "email": "dell@x.sn",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("ibrahimaFournisseur", response.body.id);
+%}
+
+
+### =========================================================
+### ÉTAPE 10 — COMMANDES (par boutique)
+### =========================================================
+
+### 10.1 — Fatou commande multi-produits
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "clientId": {{fatouClient1}},
+  "tvaPercent": 18.00,
+  "notes": "Commande Fatou multi-produits",
+  "lignes": [
+    { "produitId": {{fatouProduit1}}, "quantite": 2 },
+    { "produitId": {{fatouProduit2}}, "quantite": 1 }
+  ]
+}
+
+> {%
+    client.global.set("fatouCmd1", response.body.id);
+    client.log("✅ Commande Fatou : " + response.body.numero);
+%}
+
+### 10.2 — Bouba commande
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "clientId": {{boubaClient1}},
+  "tvaPercent": 18.00,
+  "lignes": [
+    { "produitId": {{boubaProduit1}}, "quantite": 1 }
+  ]
+}
+
+> {%
+    client.global.set("boubaCmd1", response.body.id);
+%}
+
+### 10.3 — Ibrahima commande
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "clientId": {{ibrahimaClient1}},
+  "tvaPercent": 18.00,
+  "lignes": [
+    { "produitId": {{ibrahimaProduit1}}, "quantite": 1 }
+  ]
+}
+
+> {%
+    client.global.set("ibrahimaCmd1", response.body.id);
+%}
+
+
+### =========================================================
+### ÉTAPE 11 — PAIEMENTS
+### =========================================================
+
+### 11.1 — Fatou paie le solde
+POST {{baseUrl}}/paiements
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "commandeId": {{fatouCmd1}},
+  "montant": 29500.00,
+  "methode": "WAVE",
+  "reference": "TX-FATOU-001"
+}
+
+> {%
+    client.global.set("fatouPaiement", response.body.id);
+%}
+
+### 11.2 — Reste à payer Fatou
+GET {{baseUrl}}/paiements/commande/{{fatouCmd1}}/reste
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### ÉTAPE 12 — STATUTS commande
+### =========================================================
+
+### 12.1 — Fatou → EN_COURS
+PATCH {{baseUrl}}/commandes/{{fatouCmd1}}/statut/EN_COURS
+Authorization: Bearer {{fatouToken}}
+
+### 12.2 — Fatou → LIVREE
+PATCH {{baseUrl}}/commandes/{{fatouCmd1}}/statut/LIVREE
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### ÉTAPE 13 — FACTURES
+### =========================================================
+
+### 13.1 — Fatou facture
+POST {{baseUrl}}/factures
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "commandeId": {{fatouCmd1}},
+  "notes": "Facture émise"
+}
+
+> {%
+    client.global.set("fatouFacture", response.body.id);
+%}
+
+### 13.2 — Émettre
+PATCH {{baseUrl}}/factures/{{fatouFacture}}/emettre
+Authorization: Bearer {{fatouToken}}
+
+### 13.3 — Payer
+PATCH {{baseUrl}}/factures/{{fatouFacture}}/payer
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### ÉTAPE 14 — RETOURS
+### =========================================================
+
+### 14.1 — Fatou crée retour
+POST {{baseUrl}}/retours
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "commandeId": {{fatouCmd1}},
+  "motif": "Produit défectueux",
+  "lignes": [
+    { "produitId": {{fatouProduit1}}, "quantite": 1, "raison": "Ne charge pas" }
+  ]
+}
+
+> {%
+    client.global.set("fatouRetour", response.body.id);
+%}
+
+### 14.2 — ACCEPTE
+PATCH {{baseUrl}}/retours/{{fatouRetour}}/statut?statut=ACCEPTE
+Authorization: Bearer {{fatouToken}}
+
+### 14.3 — RECU (stock restitué)
+PATCH {{baseUrl}}/retours/{{fatouRetour}}/statut?statut=RECU
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### ÉTAPE 15 — COMMANDES D'ACHAT
+### =========================================================
+
+### 15.1 — Fatou commande d'achat
+POST {{baseUrl}}/commandes-achat
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "fournisseurId": {{fatouFournisseur}},
+  "tvaPercent": 18.00,
+  "notes": "Réappro",
+  "lignes": [
+    { "produitId": {{fatouProduit1}}, "quantite": 20, "prixAchatUnitaire": 7000.00 }
+  ]
+}
+
+> {%
+    client.global.set("fatouAchat", response.body.id);
+%}
+
+### 15.2 — COMMANDEE
+PATCH {{baseUrl}}/commandes-achat/{{fatouAchat}}/statut/COMMANDEE
+Authorization: Bearer {{fatouToken}}
+
+### 15.3 — RECUE (stock augmenté)
+PATCH {{baseUrl}}/commandes-achat/{{fatouAchat}}/statut/RECUE
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### ÉTAPE 16 — VÉRIFICATIONS SÉCURITÉ
+### =========================================================
+
+### 16.1 — Ali voit TOUTES les commandes de son entreprise
+GET {{baseUrl}}/commandes
+Authorization: Bearer {{aliToken}}
+
+### 16.2 — Bouba → commande de Fatou → 404
+GET {{baseUrl}}/commandes/{{fatouCmd1}}
+Authorization: Bearer {{boubaToken}}
+
+### 16.3 — Ibrahima (autre entreprise) → commande Fatou → 404
+GET {{baseUrl}}/commandes/{{fatouCmd1}}
+Authorization: Bearer {{ibrahimaToken}}
+
+### 16.4 — Ali tente create → 403
+POST {{baseUrl}}/commandes
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "clientId": {{fatouClient1}},
+  "lignes": [{ "produitId": {{fatouProduit1}}, "quantite": 1 }]
+}
+
+### 16.5 — Yara (SUPER_ADMIN) → /produits → 400
+GET {{baseUrl}}/produits
+Authorization: Bearer {{yaraToken}}

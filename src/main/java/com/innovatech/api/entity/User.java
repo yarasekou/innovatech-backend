@@ -18,7 +18,8 @@ import java.util.Set;
                 @UniqueConstraint(name = "uk_user_username", columnNames = "username")
         },
         indexes = {
-                @Index(name = "idx_user_patron", columnList = "patron_id")
+                @Index(name = "idx_user_patron", columnList = "patron_id"),
+                @Index(name = "idx_user_entreprise", columnList = "entreprise_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -49,6 +50,10 @@ public class User {
     @Column(name = "nom", length = 100)
     private String nom;
 
+    // -----------------------------------------
+    // Rôles
+    // -----------------------------------------
+
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "user_roles",
@@ -60,12 +65,25 @@ public class User {
     private Set<Role> roles = new HashSet<>();
 
     // -----------------------------------------
-    // Relation hiérarchique : SELLER → USER (patron)
+    // Entreprise d'appartenance
+    // -----------------------------------------
+    // - SUPER_ADMIN : null
+    // - ADMIN       : son entreprise (owner)
+    // - USER        : l'entreprise de son ADMIN
+    // - SELLER      : l'entreprise de son patron (USER)
     // -----------------------------------------
 
-    /**
-     * Le patron de cet utilisateur (null pour ADMIN et USER, rempli pour SELLER).
-     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "entreprise_id",
+            foreignKey = @ForeignKey(name = "fk_user_entreprise")
+    )
+    private Entreprise entreprise;
+
+    // -----------------------------------------
+    // Hiérarchie : SELLER → USER (patron)
+    // -----------------------------------------
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "patron_id",
@@ -73,9 +91,6 @@ public class User {
     )
     private User patron;
 
-    /**
-     * Les employés (SELLERs) rattachés à cet utilisateur.
-     */
     @OneToMany(
             mappedBy = "patron",
             fetch = FetchType.LAZY
@@ -96,21 +111,6 @@ public class User {
     private LocalDateTime dateModification;
 
     // -----------------------------------------
-    // Entreprise (1-1)
-    // -----------------------------------------
-
-    /**
-     * L'entreprise du USER (null tant qu'elle n'est pas créée).
-     */
-    @OneToOne(
-            mappedBy = "user",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true,
-            fetch = FetchType.LAZY
-    )
-    private Entreprise entreprise;
-
-    // -----------------------------------------
     // Méthodes utilitaires
     // -----------------------------------------
 
@@ -122,5 +122,23 @@ public class User {
     public void retirerEmploye(User employe) {
         employes.remove(employe);
         employe.setPatron(null);
+    }
+
+    /**
+     * Vérifie si l'utilisateur possède un rôle donné.
+     */
+    public boolean hasRole(Role role) {
+        return roles != null && roles.contains(role);
+    }
+
+    /**
+     * Vérifie si l'utilisateur possède AU MOINS UN des rôles donnés.
+     */
+    public boolean hasAnyRole(Role... rolesToCheck) {
+        if (roles == null || rolesToCheck == null) return false;
+        for (Role r : rolesToCheck) {
+            if (roles.contains(r)) return true;
+        }
+        return false;
     }
 }

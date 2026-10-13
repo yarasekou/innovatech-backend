@@ -3,13 +3,18 @@ package com.innovatech.api.mapper;
 import com.innovatech.api.dto.ClientRequestDTO;
 import com.innovatech.api.dto.ClientResponseDTO;
 import com.innovatech.api.entity.Client;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.User;
 import org.springframework.stereotype.Component;
 
 @Component
 public class ClientMapper {
 
-    public Client toEntity(ClientRequestDTO dto, User user) {
+    // -----------------------------------------
+    // CREATE
+    // -----------------------------------------
+
+    public Client toEntity(ClientRequestDTO dto, Entreprise entreprise, User user) {
         if (dto == null) return null;
 
         return Client.builder()
@@ -22,9 +27,14 @@ public class ClientMapper {
                 .pays(dto.getPays())
                 .siret(dto.getSiret())
                 .actif(dto.getActif() != null ? dto.getActif() : true)
+                .entreprise(entreprise)
                 .user(user)
                 .build();
     }
+
+    // -----------------------------------------
+    // UPDATE
+    // -----------------------------------------
 
     public void updateEntity(Client entity, ClientRequestDTO dto) {
         entity.setNom(dto.getNom());
@@ -36,8 +46,13 @@ public class ClientMapper {
         entity.setPays(dto.getPays());
         entity.setSiret(dto.getSiret());
         entity.setActif(dto.getActif() != null ? dto.getActif() : entity.isActif());
-        // ⚠️ On ne touche PAS au user en UPDATE (il reste le créateur)
+        // ⚠️ Entreprise ne change PAS
+        // ⚠️ User ne change PAS
     }
+
+    // -----------------------------------------
+    // RESPONSE
+    // -----------------------------------------
 
     public ClientResponseDTO toResponseDTO(Client entity) {
         if (entity == null) return null;
@@ -56,6 +71,13 @@ public class ClientMapper {
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification());
 
+        // Entreprise
+        if (entity.getEntreprise() != null) {
+            builder.entrepriseId(entity.getEntreprise().getId())
+                    .entrepriseNom(entity.getEntreprise().getNom());
+        }
+
+        // User créateur
         if (entity.getUser() != null) {
             builder.userId(entity.getUser().getId())
                     .userEmail(entity.getUser().getEmail())

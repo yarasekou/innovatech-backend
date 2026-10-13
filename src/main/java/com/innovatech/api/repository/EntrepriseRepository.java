@@ -15,13 +15,9 @@ public interface EntrepriseRepository extends JpaRepository<Entreprise, Long> {
 
     boolean existsBySlug(String slug);
 
-    Optional<Entreprise> findByUserId(Long userId);
+    @Query("SELECT e FROM Entreprise e LEFT JOIN FETCH e.owner WHERE e.id = :id")
+    Optional<Entreprise> findByIdWithOwner(@Param("id") Long id);
 
-    boolean existsByUserId(Long userId);
-
-    @Query("SELECT e FROM Entreprise e LEFT JOIN FETCH e.user WHERE e.id = :id")
-    Optional<Entreprise> findByIdWithUser(@Param("id") Long id);
-
-    @Query("SELECT e FROM Entreprise e LEFT JOIN FETCH e.user WHERE e.user.id = :userId")
-    Optional<Entreprise> findByUserIdWithUser(@Param("userId") Long userId);
+    @Query("SELECT e FROM Entreprise e LEFT JOIN FETCH e.owner WHERE e.owner.id = :ownerId")
+    Optional<Entreprise> findByOwnerId(@Param("ownerId") Long ownerId);
 }

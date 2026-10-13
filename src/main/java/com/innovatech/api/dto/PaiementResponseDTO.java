@@ -29,6 +29,11 @@ public class PaiementResponseDTO {
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
 
+    // Entreprise
+    private Long entrepriseId;
+    private String entrepriseNom;
+
+    // User (boutique)
     private Long userId;
     private String userEmail;
     private String userNom;

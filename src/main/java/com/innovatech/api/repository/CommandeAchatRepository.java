@@ -13,83 +13,129 @@ import java.util.Optional;
 @Repository
 public interface CommandeAchatRepository extends JpaRepository<CommandeAchat, Long> {
 
-    Optional<CommandeAchat> findByNumero(String numero);
+    // -----------------------------------------
+    // Numérotation par boutique
+    // -----------------------------------------
 
-    boolean existsByNumero(String numero);
+    @Query("SELECT COUNT(c) FROM CommandeAchat c " +
+            "WHERE YEAR(c.dateCommande) = :annee " +
+            "AND c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId")
+    long countByAnneeAndEntrepriseIdAndUserId(
+            @Param("annee") int annee,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
 
-    long countByFournisseurId(Long fournisseurId);
-
-    @Query("SELECT COUNT(c) FROM CommandeAchat c WHERE YEAR(c.dateCommande) = :annee")
-    long countByAnnee(@Param("annee") int annee);
-
-    // -------------------------------------------------
-    // Avec JOIN FETCH (éviter le N+1)
-    // -------------------------------------------------
-
-    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
-            "JOIN FETCH c.fournisseur " +
-            "LEFT JOIN FETCH c.acheteur " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.id = :id")
-    Optional<CommandeAchat> findByIdWithDetails(@Param("id") Long id);
+    // -----------------------------------------
+    // Par entreprise (ADMIN)
+    // -----------------------------------------
 
     @Query("SELECT DISTINCT c FROM CommandeAchat c " +
             "JOIN FETCH c.fournisseur " +
-            "LEFT JOIN FETCH c.acheteur " +
+            "JOIN FETCH c.user " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId " +
             "ORDER BY c.dateCommande DESC")
-    List<CommandeAchat> findAllWithDetails();
+    List<CommandeAchat> findByEntrepriseIdWithDetails(@Param("entrepriseId") Long entrepriseId);
 
     @Query("SELECT DISTINCT c FROM CommandeAchat c " +
             "JOIN FETCH c.fournisseur " +
+            "JOIN FETCH c.user " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
-            "WHERE c.numero = :numero")
-    Optional<CommandeAchat> findByNumeroWithDetails(@Param("numero") String numero);
+            "WHERE c.id = :id AND c.entreprise.id = :entrepriseId")
+    Optional<CommandeAchat> findByIdAndEntrepriseIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId);
+
+    // -----------------------------------------
+    // Par entreprise + user (boutique)
+    // -----------------------------------------
 
     @Query("SELECT DISTINCT c FROM CommandeAchat c " +
             "JOIN FETCH c.fournisseur " +
+            "JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId " +
+            "ORDER BY c.dateCommande DESC")
+    List<CommandeAchat> findByEntrepriseIdAndUserIdWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
+            "JOIN FETCH c.fournisseur " +
+            "JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.id = :id " +
+            "AND c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId")
+    Optional<CommandeAchat> findByIdAndEntrepriseIdAndUserIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    // -----------------------------------------
+    // Par statut
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
+            "JOIN FETCH c.fournisseur " +
+            "JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId " +
+            "AND c.statut = :statut")
+    List<CommandeAchat> findByEntrepriseIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("statut") StatutAchat statut);
+
+    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
+            "JOIN FETCH c.fournisseur " +
+            "JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId " +
+            "AND c.statut = :statut")
+    List<CommandeAchat> findByEntrepriseIdAndUserIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId,
+            @Param("statut") StatutAchat statut);
+
+    // -----------------------------------------
+    // Par fournisseur
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
+            "JOIN FETCH c.fournisseur " +
+            "JOIN FETCH c.user " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
             "WHERE c.fournisseur.id = :fournisseurId " +
             "ORDER BY c.dateCommande DESC")
     List<CommandeAchat> findByFournisseurIdWithDetails(@Param("fournisseurId") Long fournisseurId);
 
-    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
-            "JOIN FETCH c.fournisseur " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.statut = :statut")
-    List<CommandeAchat> findByStatutWithDetails(@Param("statut") StatutAchat statut);
+    // -----------------------------------------
+    // Détails
+    // -----------------------------------------
 
     @Query("SELECT DISTINCT c FROM CommandeAchat c " +
             "JOIN FETCH c.fournisseur " +
-            "LEFT JOIN FETCH c.acheteur " +
+            "JOIN FETCH c.user " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
-            "WHERE c.acheteur.id = :acheteurId " +
-            "ORDER BY c.dateCommande DESC")
-    List<CommandeAchat> findByAcheteurIdWithDetails(@Param("acheteurId") Long acheteurId);
+            "WHERE c.id = :id")
+    Optional<CommandeAchat> findByIdWithDetails(@Param("id") Long id);
 
-    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
-            "JOIN FETCH c.fournisseur " +
-            "LEFT JOIN FETCH c.acheteur " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.id = :id AND c.acheteur.id = :acheteurId")
-    Optional<CommandeAchat> findByIdAndAcheteurIdWithDetails(@Param("id") Long id,
-                                                             @Param("acheteurId") Long acheteurId);
+    // -----------------------------------------
+    // Compteurs
+    // -----------------------------------------
 
-    @Query("SELECT DISTINCT c FROM CommandeAchat c " +
-            "JOIN FETCH c.fournisseur " +
-            "LEFT JOIN FETCH c.acheteur " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.statut = :statut AND c.acheteur.id = :acheteurId")
-    List<CommandeAchat> findByStatutAndAcheteurIdWithDetails(@Param("statut") StatutAchat statut,
-                                                             @Param("acheteurId") Long acheteurId);
-
-    long countByAcheteurId(Long acheteurId);
+    long countByFournisseurId(Long fournisseurId);
+    long countByEntrepriseId(Long entrepriseId);
+    long countByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
 }

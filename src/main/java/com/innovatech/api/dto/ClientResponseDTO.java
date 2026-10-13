@@ -22,7 +22,11 @@ public class ClientResponseDTO {
     private String siret;
     private boolean actif;
 
-    // Propriétaire
+    // Entreprise propriétaire
+    private Long entrepriseId;
+    private String entrepriseNom;
+
+    // User créateur (traçabilité)
     private Long userId;
     private String userEmail;
     private String userNom;

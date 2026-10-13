@@ -34,8 +34,8 @@ public class CommandeService {
     private final CommandeRepository commandeRepository;
     private final ClientRepository clientRepository;
     private final ProduitRepository produitRepository;
-    private final UserRepository userRepository;
     private final PhotoProduitRepository photoProduitRepository;
+    private final UserRepository userRepository;
     private final CommandeMapper commandeMapper;
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
@@ -52,104 +52,133 @@ public class CommandeService {
     // -----------------------------------------
 
     public List<CommandeResponseDTO> findAll() {
-        if (SecurityUtils.isAdmin()) {
-            return commandeRepository.findAllWithDetails()
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return commandeRepository.findByEntrepriseIdWithDetails(entreprise.getId())
                     .stream()
                     .map(commandeMapper::toResponseDTO)
                     .toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return commandeRepository.findByVendeurIdWithDetails(dataOwnerId)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return commandeRepository.findByEntrepriseIdAndUserIdWithDetails(
+                        entreprise.getId(), shopOwnerId)
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
     }
 
     public CommandeResponseDTO findById(Long id) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
         Commande commande;
 
-        if (SecurityUtils.isAdmin()) {
-            commande = commandeRepository.findByIdWithDetails(id)
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            commande = commandeRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
         } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            commande = commandeRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
+            Long shopOwnerId = resolveShopOwnerId(user);
+            commande = commandeRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
         }
 
-        return commandeMapper.toResponseDTO(commande);
-    }
-
-    public CommandeResponseDTO findByNumero(String numero) {
-        Commande commande = commandeRepository.findByNumeroWithDetails(numero)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Commande avec numéro " + numero + " introuvable"));
         return commandeMapper.toResponseDTO(commande);
     }
 
     public List<CommandeResponseDTO> findByClient(Long clientId) {
-        if (!clientRepository.existsById(clientId)) {
-            throw new ResourceNotFoundException("Client", clientId);
-        }
-        return commandeRepository.findByClientIdWithDetails(clientId)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        // Vérifier que le client appartient à la boutique
+        Client client = findMyClient(user, entreprise, clientId);
+
+        return commandeRepository.findByClientIdWithDetails(client.getId())
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
     }
 
     public List<CommandeResponseDTO> findByStatut(StatutCommande statut) {
-        if (SecurityUtils.isAdmin()) {
-            return commandeRepository.findByStatutWithDetails(statut)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return commandeRepository.findByEntrepriseIdAndStatutWithDetails(
+                            entreprise.getId(), statut)
                     .stream()
                     .map(commandeMapper::toResponseDTO)
                     .toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return commandeRepository.findByStatutAndVendeurIdWithDetails(statut, dataOwnerId)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return commandeRepository.findByEntrepriseIdAndUserIdAndStatutWithDetails(
+                        entreprise.getId(), shopOwnerId, statut)
                 .stream()
                 .map(commandeMapper::toResponseDTO)
                 .toList();
     }
 
     // -----------------------------------------
-    // CREATE
+    // CREATE — USER / SELLER uniquement
     // -----------------------------------------
 
     @Transactional
-    public CommandeResponseDTO create(CommandeRequestDTO dto, String vendeurEmail) {
-        Client client = clientRepository.findById(dto.getClientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Client", dto.getClientId()));
+    public CommandeResponseDTO create(CommandeRequestDTO dto, String userEmail) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException(
+                    "Un ADMIN ne crée pas de commandes. Créez un USER pour cela.");
+        }
+
+        Long shopOwnerId = resolveShopOwnerId(user);
+        User shopOwner = userRepository.findById(shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
+
+        // Vérifier que le client appartient à la boutique
+        Client client = findMyClient(user, entreprise, dto.getClientId());
 
         if (!client.isActif()) {
             throw new BusinessException("Impossible de créer une commande pour un client inactif");
         }
 
-        User vendeur = userRepository.findByEmail(vendeurEmail)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + vendeurEmail));
-
-        Commande commande = commandeMapper.toEntity(dto, client, vendeur);
-        commande.setNumero(genererNumero());
-        commande.setStatut(StatutCommande.EN_ATTENTE);
-        commande.setDateCommande(LocalDateTime.now());
+        // Créer la commande
+        Commande commande = Commande.builder()
+                .numero(genererNumero(entreprise.getId(), shopOwnerId))
+                .entreprise(entreprise)
+                .user(shopOwner)
+                .client(client)
+                .statut(StatutCommande.EN_ATTENTE)
+                .tvaPercent(dto.getTvaPercent() != null ? dto.getTvaPercent() : entreprise.getTvaPercent())
+                .notes(dto.getNotes())
+                .dateLivraisonPrevue(dto.getDateLivraisonPrevue())
+                .dateCommande(LocalDateTime.now())
+                .build();
 
         // Ajouter les lignes
         for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
-            Produit produit = produitRepository.findById(ligneDTO.getProduitId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
+            // Vérifier que le produit appartient à la boutique
+            Produit produit = produitRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            ligneDTO.getProduitId(), entreprise.getId(), shopOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Produit", ligneDTO.getProduitId()));
 
             if (!produit.isActif()) {
                 throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
             }
 
-            // ⚠️ RÈGLE MÉTIER : le produit doit avoir au moins une photo
             long nbPhotos = photoProduitRepository.countByProduitId(produit.getId());
             if (nbPhotos == 0) {
                 throw new BusinessException(String.format(
-                        "Le produit '%s' n'a pas de photo. " +
-                                "Ajoutez au moins une photo avant de le vendre.",
+                        "Le produit '%s' n'a pas de photo. Ajoutez-en une avant de le vendre.",
                         produit.getNom()));
             }
 
@@ -172,7 +201,8 @@ public class CommandeService {
         recalculerTotaux(commande);
 
         Commande saved = commandeRepository.save(commande);
-        log.info("Commande {} créée par {}", saved.getNumero(), vendeurEmail);
+        log.info("Commande {} créée par {} pour la boutique de {}",
+                saved.getNumero(), userEmail, shopOwner.getEmail());
         return commandeMapper.toResponseDTO(saved);
     }
 
@@ -182,43 +212,48 @@ public class CommandeService {
 
     @Transactional
     public CommandeResponseDTO update(Long id, CommandeRequestDTO dto) {
-        Commande existing;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            existing = commandeRepository.findByIdWithDetails(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
-        } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            existing = commandeRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
-        }
+        Commande existing = findMyCommande(user, entreprise, id);
 
         if (existing.getStatut() != StatutCommande.EN_ATTENTE) {
             throw new BusinessException(
                     "Seule une commande EN_ATTENTE peut être modifiée");
         }
 
-        Client client = clientRepository.findById(dto.getClientId())
-                .orElseThrow(() -> new ResourceNotFoundException("Client", dto.getClientId()));
+        Client client = findMyClient(user, entreprise, dto.getClientId());
+        existing.setClient(client);
 
-        commandeMapper.updateEntity(existing, dto, client);
+        if (dto.getTvaPercent() != null) {
+            existing.setTvaPercent(dto.getTvaPercent());
+        }
+        if (dto.getNotes() != null) {
+            existing.setNotes(dto.getNotes());
+        }
+        if (dto.getDateLivraisonPrevue() != null) {
+            existing.setDateLivraisonPrevue(dto.getDateLivraisonPrevue());
+        }
+
         existing.viderLignes();
 
+        Long shopOwnerId = existing.getUser().getId();
+
         for (LigneCommandeRequestDTO ligneDTO : dto.getLignes()) {
-            Produit produit = produitRepository.findById(ligneDTO.getProduitId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
+            Produit produit = produitRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            ligneDTO.getProduitId(), entreprise.getId(), shopOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Produit", ligneDTO.getProduitId()));
 
             if (!produit.isActif()) {
                 throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
             }
 
-            // ⚠️ RÈGLE MÉTIER : le produit doit avoir au moins une photo
             long nbPhotos = photoProduitRepository.countByProduitId(produit.getId());
             if (nbPhotos == 0) {
                 throw new BusinessException(String.format(
-                        "Le produit '%s' n'a pas de photo. " +
-                                "Ajoutez au moins une photo avant de le vendre.",
-                        produit.getNom()));
+                        "Le produit '%s' n'a pas de photo.", produit.getNom()));
             }
 
             if (produit.getStock() < ligneDTO.getQuantite()) {
@@ -249,16 +284,10 @@ public class CommandeService {
 
     @Transactional
     public CommandeResponseDTO changerStatut(Long id, StatutCommande nouveauStatut) {
-        Commande commande;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            commande = commandeRepository.findByIdWithDetails(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
-        } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            commande = commandeRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
-        }
+        Commande commande = findMyCommande(user, entreprise, id);
 
         StatutCommande actuel = commande.getStatut();
         String transition = actuel.name() + "->" + nouveauStatut.name();
@@ -287,13 +316,15 @@ public class CommandeService {
 
     @Transactional
     public void delete(Long id) {
-        Commande commande = commandeRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Commande commande = findMyCommande(user, entreprise, id);
 
         if (commande.getStatut() == StatutCommande.EN_COURS
                 || commande.getStatut() == StatutCommande.LIVREE) {
             throw new BusinessException(
-                    "Impossible de supprimer une commande en cours ou livrée. Annulez-la.");
+                    "Impossible de supprimer une commande en cours ou livrée.");
         }
 
         commandeRepository.delete(commande);
@@ -303,15 +334,15 @@ public class CommandeService {
     // MÉTHODES PRIVÉES
     // -----------------------------------------
 
-    private String genererNumero() {
+    private String genererNumero(Long entrepriseId, Long userId) {
         int annee = Year.now().getValue();
-        long count = commandeRepository.countByAnnee(annee);
+        long count = commandeRepository.countByAnneeAndEntrepriseIdAndUserId(
+                annee, entrepriseId, userId);
         return String.format("CMD-%d-%04d", annee, count + 1);
     }
 
     private void recalculerTotaux(Commande commande) {
-        BigDecimal totalHT = commande.getLignes()
-                .stream()
+        BigDecimal totalHT = commande.getLignes().stream()
                 .map(LigneCommande::getSousTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -355,23 +386,57 @@ public class CommandeService {
         }
     }
 
-    private Long getCurrentDataOwnerId() {
-        String email = SecurityUtils.getCurrentUserEmail();
-        if (email == null) {
-            throw new BusinessException("Utilisateur non authentifié");
+    private Commande findMyCommande(User user, Entreprise entreprise, Long id) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return commandeRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
         }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return commandeRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        id, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande", id));
+    }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + email));
+    private Client findMyClient(User user, Entreprise entreprise, Long clientId) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return clientRepository
+                    .findByIdAndEntrepriseIdWithDetails(clientId, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Client", clientId));
+        }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return clientRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        clientId, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Client", clientId));
+    }
 
-        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
             if (user.getPatron() == null) {
                 throw new BusinessException("Ce SELLER n'a pas de patron assigné");
             }
             return user.getPatron().getId();
         }
-
         return user.getId();
+    }
+
+    private Entreprise getCurrentEntreprise(User user) {
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+        return user.getEntreprise();
+    }
+
+    private User getCurrentUser() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
     }
 }

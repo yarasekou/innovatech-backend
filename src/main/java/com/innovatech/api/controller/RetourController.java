@@ -17,59 +17,41 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Endpoints REST pour la gestion des retours clients.
- * <p>
- * Toutes les routes nécessitent une authentification.
- * Le filtrage par propriétaire (patron / SELLER) est fait dans le service
- * via {@code commande.vendeur.id} (= dataOwnerId).
- */
 @RestController
 @RequestMapping("/retours")
 @RequiredArgsConstructor
-@PreAuthorize("isAuthenticated()")
-@Tag(name = "Retours clients", description = "Gestion des retours clients")
+@Tag(name = "Retours clients", description = "Retours scopés par boutique")
 public class RetourController {
 
     private final RetourService retourService;
 
-    // -----------------------------------------
-    // READ
-    // -----------------------------------------
-
     @GetMapping
-    @Operation(summary = "Liste tous les retours accessibles à l'utilisateur connecté")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<RetourResponseDTO>> findAll() {
         return ResponseEntity.ok(retourService.findAll());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Détail d'un retour par son id")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<RetourResponseDTO> findById(@PathVariable Long id) {
         return ResponseEntity.ok(retourService.findById(id));
     }
 
     @GetMapping("/statut/{statut}")
-    @Operation(summary = "Liste les retours par statut")
-    public ResponseEntity<List<RetourResponseDTO>> findByStatut(
-            @PathVariable StatutRetour statut) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    public ResponseEntity<List<RetourResponseDTO>> findByStatut(@PathVariable StatutRetour statut) {
         return ResponseEntity.ok(retourService.findByStatut(statut));
     }
 
     @GetMapping("/commande/{commandeId}")
-    @Operation(summary = "Liste les retours liés à une commande")
-    public ResponseEntity<List<RetourResponseDTO>> findByCommande(
-            @PathVariable Long commandeId) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    public ResponseEntity<List<RetourResponseDTO>> findByCommande(@PathVariable Long commandeId) {
         return ResponseEntity.ok(retourService.findByCommande(commandeId));
     }
 
-    // -----------------------------------------
-    // CREATE
-    // -----------------------------------------
-
     @PostMapping
-    @Operation(summary = "Créer une demande de retour pour une commande LIVREE")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Créer une demande de retour")
     public ResponseEntity<RetourResponseDTO> create(
             @Valid @RequestBody RetourRequestDTO dto,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -77,25 +59,17 @@ public class RetourController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // -----------------------------------------
-    // CHANGEMENT DE STATUT
-    // -----------------------------------------
-
     @PatchMapping("/{id}/statut")
-    @Operation(summary = "Changer le statut d'un retour (transitions contrôlées)")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Changer le statut d'un retour")
     public ResponseEntity<RetourResponseDTO> changerStatut(
             @PathVariable Long id,
             @RequestParam StatutRetour statut) {
         return ResponseEntity.ok(retourService.changerStatut(id, statut));
     }
 
-    // -----------------------------------------
-    // DELETE
-    // -----------------------------------------
-
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un retour (uniquement si non reçu/remboursé)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         retourService.delete(id);
         return ResponseEntity.noContent().build();

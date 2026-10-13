@@ -20,7 +20,11 @@ public class UserResponseDTO {
     private Set<String> roles;
     private boolean actif;
 
-    // Relation hiérarchique
+    // Entreprise d'appartenance
+    private Long entrepriseId;
+    private String entrepriseNom;
+
+    // Relation hiérarchique : SELLER → USER (patron)
     private Long patronId;
     private String patronEmail;
     private String patronNom;

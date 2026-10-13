@@ -16,32 +16,26 @@ public class RetourResponseDTO {
 
     private Long id;
     private String numero;
-
-    // Commande d'origine
     private Long commandeId;
     private String commandeNumero;
-
-    // Client
     private Long clientId;
     private String clientNom;
     private String clientPrenom;
     private String clientEmail;
-
-    // Vendeur (user)
     private Long userId;
     private String userEmail;
-
-    // Retour
     private StatutRetour statut;
     private String statutLibelle;
     private String motif;
     private String notes;
     private BigDecimal montantTotal;
-
     private LocalDateTime dateDemande;
     private LocalDateTime dateTraitement;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
-
     private List<LigneRetourResponseDTO> lignes;
+
+    // Entreprise
+    private Long entrepriseId;
+    private String entrepriseNom;
 }

@@ -2,31 +2,42 @@ package com.innovatech.api.mapper;
 
 import com.innovatech.api.dto.*;
 import com.innovatech.api.entity.CommandeAchat;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.Fournisseur;
 import com.innovatech.api.entity.LigneCommandeAchat;
-import org.springframework.stereotype.Component;
 import com.innovatech.api.entity.User;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
 public class CommandeAchatMapper {
 
-    public CommandeAchat toEntity(CommandeAchatRequestDTO dto, Fournisseur fournisseur, User acheteur) {
+    public CommandeAchat toEntity(CommandeAchatRequestDTO dto,
+                                  Entreprise entreprise,
+                                  User user,
+                                  Fournisseur fournisseur) {
         if (dto == null) return null;
 
         return CommandeAchat.builder()
+                .entreprise(entreprise)
+                .user(user)
                 .fournisseur(fournisseur)
-                .acheteur(acheteur)
-                .tvaPercent(dto.getTvaPercent() != null ? dto.getTvaPercent() : new java.math.BigDecimal("18.00"))
+                .tvaPercent(dto.getTvaPercent() != null
+                        ? dto.getTvaPercent()
+                        : new java.math.BigDecimal("18.00"))
                 .notes(dto.getNotes())
                 .dateReceptionPrevue(dto.getDateReceptionPrevue())
                 .build();
     }
 
-    public void updateEntity(CommandeAchat entity, CommandeAchatRequestDTO dto, Fournisseur fournisseur) {
+    public void updateEntity(CommandeAchat entity,
+                             CommandeAchatRequestDTO dto,
+                             Fournisseur fournisseur) {
         entity.setFournisseur(fournisseur);
-        entity.setTvaPercent(dto.getTvaPercent() != null ? dto.getTvaPercent() : entity.getTvaPercent());
+        entity.setTvaPercent(dto.getTvaPercent() != null
+                ? dto.getTvaPercent()
+                : entity.getTvaPercent());
         entity.setNotes(dto.getNotes());
         entity.setDateReceptionPrevue(dto.getDateReceptionPrevue());
     }
@@ -34,31 +45,38 @@ public class CommandeAchatMapper {
     public CommandeAchatResponseDTO toResponseDTO(CommandeAchat entity) {
         if (entity == null) return null;
 
-        CommandeAchatResponseDTO.CommandeAchatResponseDTOBuilder builder = CommandeAchatResponseDTO.builder()
-                .id(entity.getId())
-                .numero(entity.getNumero())
-                .fournisseur(toFournisseurSummary(entity.getFournisseur()))
-                .statut(entity.getStatut())
-                .statutLibelle(entity.getStatut() != null ? entity.getStatut().getLibelle() : null)
-                .totalHT(entity.getTotalHT())
-                .tvaPercent(entity.getTvaPercent())
-                .totalTTC(entity.getTotalTTC())
-                .notes(entity.getNotes())
-                .dateCommande(entity.getDateCommande())
-                .dateReceptionPrevue(entity.getDateReceptionPrevue())
-                .dateCreation(entity.getDateCreation())
-                .dateModification(entity.getDateModification())
-                .lignes(toLignesDTO(entity.getLignes()));
+        CommandeAchatResponseDTO.CommandeAchatResponseDTOBuilder builder =
+                CommandeAchatResponseDTO.builder()
+                        .id(entity.getId())
+                        .numero(entity.getNumero())
+                        .fournisseur(toFournisseurSummary(entity.getFournisseur()))
+                        .statut(entity.getStatut())
+                        .statutLibelle(entity.getStatut() != null ? entity.getStatut().getLibelle() : null)
+                        .totalHT(entity.getTotalHT())
+                        .tvaPercent(entity.getTvaPercent())
+                        .totalTTC(entity.getTotalTTC())
+                        .notes(entity.getNotes())
+                        .dateCommande(entity.getDateCommande())
+                        .dateReceptionPrevue(entity.getDateReceptionPrevue())
+                        .dateCreation(entity.getDateCreation())
+                        .dateModification(entity.getDateModification())
+                        .lignes(toLignesDTO(entity.getLignes()));
 
-        if (entity.getAcheteur() != null) {
-            builder.acheteurId(entity.getAcheteur().getId())
-                    .acheteurEmail(entity.getAcheteur().getEmail())
-                    .acheteurNom(entity.getAcheteur().getNom())
-                    .acheteurPrenom(entity.getAcheteur().getPrenom());
+        if (entity.getEntreprise() != null) {
+            builder.entrepriseId(entity.getEntreprise().getId())
+                    .entrepriseNom(entity.getEntreprise().getNom());
+        }
+
+        if (entity.getUser() != null) {
+            builder.userId(entity.getUser().getId())
+                    .userEmail(entity.getUser().getEmail())
+                    .userNom(entity.getUser().getNom())
+                    .userPrenom(entity.getUser().getPrenom());
         }
 
         return builder.build();
     }
+
     private FournisseurSummaryDTO toFournisseurSummary(Fournisseur f) {
         if (f == null) return null;
         return FournisseurSummaryDTO.builder()

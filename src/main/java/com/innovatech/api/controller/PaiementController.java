@@ -21,42 +21,55 @@ import java.util.List;
 @RestController
 @RequestMapping("/paiements")
 @RequiredArgsConstructor
-@Tag(name = "Paiements", description = "Paiements reçus pour les commandes")
+@Tag(name = "Paiements", description = "Paiements scopés par boutique")
 public class PaiementController {
 
     private final PaiementService paiementService;
 
+    // -----------------------------------------
+    // READ
+    // -----------------------------------------
+
     @GetMapping
-    @Operation(summary = "Liste tous les paiements")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Liste les paiements accessibles")
     public ResponseEntity<List<PaiementResponseDTO>> getAll() {
         return ResponseEntity.ok(paiementService.findAll());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<PaiementResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(paiementService.findById(id));
     }
 
     @GetMapping("/commande/{commandeId}")
-    @Operation(summary = "Liste les paiements d'une commande")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Paiements d'une commande")
     public ResponseEntity<List<PaiementResponseDTO>> getByCommande(@PathVariable Long commandeId) {
         return ResponseEntity.ok(paiementService.findByCommande(commandeId));
     }
 
     @GetMapping("/commande/{commandeId}/reste")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     @Operation(summary = "Reste à payer d'une commande")
     public ResponseEntity<ResteAPayerDTO> getReste(@PathVariable Long commandeId) {
         return ResponseEntity.ok(paiementService.calculerReste(commandeId));
     }
 
     @GetMapping("/statut/{statut}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<PaiementResponseDTO>> getByStatut(@PathVariable StatutPaiement statut) {
         return ResponseEntity.ok(paiementService.findByStatut(statut));
     }
 
+    // -----------------------------------------
+    // CREATE — USER / SELLER uniquement
+    // -----------------------------------------
+
     @PostMapping
-    @Operation(summary = "Enregistrer un nouveau paiement")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Enregistrer un paiement")
     public ResponseEntity<PaiementResponseDTO> create(
             @Valid @RequestBody PaiementRequestDTO dto,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -65,17 +78,25 @@ public class PaiementController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // -----------------------------------------
+    // STATUT — USER / SELLER uniquement
+    // -----------------------------------------
+
     @PatchMapping("/{id}/statut/{nouveauStatut}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<PaiementResponseDTO> changerStatut(
             @PathVariable Long id,
             @PathVariable StatutPaiement nouveauStatut) {
         return ResponseEntity.ok(paiementService.changerStatut(id, nouveauStatut));
     }
 
+    // -----------------------------------------
+    // DELETE — USER / SELLER uniquement
+    // -----------------------------------------
+
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un paiement (ADMIN uniquement)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Supprimer un paiement non validé")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         paiementService.delete(id);
         return ResponseEntity.noContent().build();

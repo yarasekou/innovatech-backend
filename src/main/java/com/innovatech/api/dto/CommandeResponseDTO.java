@@ -6,7 +6,7 @@ import lombok.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;   // ⚠️ AJOUTER
+import java.util.List;
 
 @Getter
 @Setter
@@ -28,13 +28,15 @@ public class CommandeResponseDTO {
     private LocalDate dateLivraisonPrevue;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
-
-    // ⚠️ AJOUTER CETTE LIGNE
     private List<LigneCommandeResponseDTO> lignes;
 
-    // Vendeur
-    private Long vendeurId;
-    private String vendeurEmail;
-    private String vendeurNom;
-    private String vendeurPrenom;
+    // Entreprise
+    private Long entrepriseId;
+    private String entrepriseNom;
+
+    // User (boutique)
+    private Long userId;
+    private String userEmail;
+    private String userNom;
+    private String userPrenom;
 }

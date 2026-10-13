@@ -31,20 +31,6 @@ public final class SecurityUtils {
     }
 
     /**
-     * Retourne true si l'utilisateur connecté a le rôle ROLE_ADMIN.
-     */
-    public static boolean isAdmin() {
-        return hasRole("ROLE_ADMIN");
-    }
-
-    /**
-     * Retourne true si l'utilisateur connecté a le rôle ROLE_SELLER.
-     */
-    public static boolean isSeller() {
-        return hasRole("ROLE_SELLER");
-    }
-
-    /**
      * Vérifie si l'utilisateur connecté a un rôle donné.
      */
     public static boolean hasRole(String role) {
@@ -56,9 +42,55 @@ public final class SecurityUtils {
                 .anyMatch(a -> Objects.equals(a.getAuthority(), role));
     }
 
+    // -----------------------------------------
+    // Rôles
+    // -----------------------------------------
+
     /**
-     * Retourne true si l'utilisateur est admin OU seller.
+     * SUPER_ADMIN (plateforme InnovaTech).
      */
+    public static boolean isSuperAdmin() {
+        return hasRole("ROLE_SUPER_ADMIN");
+    }
+
+    /**
+     * ADMIN (owner d'une entreprise).
+     */
+    public static boolean isAdmin() {
+        return hasRole("ROLE_ADMIN");
+    }
+
+    /**
+     * USER (manager interne).
+     */
+    public static boolean isUser() {
+        return hasRole("ROLE_USER");
+    }
+
+    /**
+     * SELLER (vendeur terrain).
+     */
+    public static boolean isSeller() {
+        return hasRole("ROLE_SELLER");
+    }
+
+    // -----------------------------------------
+    // Combinaisons
+    // -----------------------------------------
+
+    /**
+     * True si l'utilisateur est un tenant (ADMIN, USER ou SELLER).
+     * C'est-à-dire qu'il appartient à une entreprise.
+     */
+    public static boolean isTenant() {
+        return isAdmin() || isUser() || isSeller();
+    }
+
+    /**
+     * True si ADMIN ou SELLER (utilisé pour certains endpoints métier).
+     * @deprecated Utiliser isTenant() à la place.
+     */
+    @Deprecated
     public static boolean isAdminOrSeller() {
         return isAdmin() || isSeller();
     }

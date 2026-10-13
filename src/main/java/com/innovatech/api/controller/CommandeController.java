@@ -20,67 +20,94 @@ import java.util.List;
 @RestController
 @RequestMapping("/commandes")
 @RequiredArgsConstructor
-@Tag(name = "Commandes", description = "Commandes clients et cycle de vie")
+@Tag(name = "Commandes", description = "Commandes clients scopées par boutique")
 public class CommandeController {
 
     private final CommandeService commandeService;
 
+    // -----------------------------------------
+    // READ
+    // -----------------------------------------
+
     @GetMapping
-    @Operation(summary = "Liste toutes les commandes")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Liste les commandes accessibles à l'utilisateur connecté")
     public ResponseEntity<List<CommandeResponseDTO>> getAll() {
         return ResponseEntity.ok(commandeService.findAll());
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Détail d'une commande")
     public ResponseEntity<CommandeResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(commandeService.findById(id));
     }
 
-    @GetMapping("/numero/{numero}")
-    public ResponseEntity<CommandeResponseDTO> getByNumero(@PathVariable String numero) {
-        return ResponseEntity.ok(commandeService.findByNumero(numero));
-    }
+    // ⚠️ Endpoint supprimé : le numéro n'est unique que par (entreprise, user)
+    // → utiliser /commandes/{id} à la place
 
     @GetMapping("/client/{clientId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Commandes d'un client de la boutique")
     public ResponseEntity<List<CommandeResponseDTO>> getByClient(@PathVariable Long clientId) {
         return ResponseEntity.ok(commandeService.findByClient(clientId));
     }
 
     @GetMapping("/statut/{statut}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Commandes par statut")
     public ResponseEntity<List<CommandeResponseDTO>> getByStatut(@PathVariable StatutCommande statut) {
         return ResponseEntity.ok(commandeService.findByStatut(statut));
     }
 
+    // -----------------------------------------
+    // CREATE — USER / SELLER uniquement
+    // -----------------------------------------
+
     @PostMapping
-    @Operation(summary = "Créer une nouvelle commande")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Créer une nouvelle commande dans ma boutique")
     public ResponseEntity<CommandeResponseDTO> create(
             @Valid @RequestBody CommandeRequestDTO dto,
             @AuthenticationPrincipal UserDetails userDetails) {
-        String vendeurEmail = userDetails.getUsername();
-        CommandeResponseDTO created = commandeService.create(dto, vendeurEmail);
+        String userEmail = userDetails.getUsername();
+        CommandeResponseDTO created = commandeService.create(dto, userEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // -----------------------------------------
+    // UPDATE — USER / SELLER uniquement
+    // -----------------------------------------
+
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Modifier une commande EN_ATTENTE de ma boutique")
     public ResponseEntity<CommandeResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody CommandeRequestDTO dto) {
         return ResponseEntity.ok(commandeService.update(id, dto));
     }
 
+    // -----------------------------------------
+    // STATUT — USER / SELLER uniquement
+    // -----------------------------------------
+
     @PatchMapping("/{id}/statut/{nouveauStatut}")
-    @PreAuthorize("hasAnyRole('USER', 'SELLER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Changer le statut d'une commande")
     public ResponseEntity<CommandeResponseDTO> changerStatut(
             @PathVariable Long id,
             @PathVariable StatutCommande nouveauStatut) {
         return ResponseEntity.ok(commandeService.changerStatut(id, nouveauStatut));
     }
 
+    // -----------------------------------------
+    // DELETE — USER / SELLER uniquement
+    // -----------------------------------------
+
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer une commande (ADMIN uniquement)")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Supprimer une commande (non démarrée)")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         commandeService.delete(id);
         return ResponseEntity.noContent().build();

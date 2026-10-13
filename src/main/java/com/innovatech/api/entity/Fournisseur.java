@@ -9,18 +9,27 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.time.LocalDateTime;
 
 /**
- * Fournisseur auprès duquel InnovaTech achète des produits.
+ * Fournisseur d'une boutique (USER) dans une entreprise.
+ * <p>
+ * Un même fournisseur (code ou email) peut exister dans plusieurs boutiques.
  */
 @Entity
 @Table(
         name = "fournisseurs",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_fournisseur_code_user", columnNames = {"code", "user_id"}),
-                @UniqueConstraint(name = "uk_fournisseur_email_user", columnNames = {"email", "user_id"})
+                @UniqueConstraint(
+                        name = "uk_fournisseur_code_entreprise_user",
+                        columnNames = {"code", "entreprise_id", "user_id"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_fournisseur_email_entreprise_user",
+                        columnNames = {"email", "entreprise_id", "user_id"}
+                )
         },
         indexes = {
                 @Index(name = "idx_fournisseur_nom", columnList = "nom"),
                 @Index(name = "idx_fournisseur_pays", columnList = "pays"),
+                @Index(name = "idx_fournisseur_entreprise", columnList = "entreprise_id"),
                 @Index(name = "idx_fournisseur_user", columnList = "user_id")
         }
 )
@@ -30,7 +39,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "user")
+@ToString(exclude = {"user", "entreprise"})
 public class Fournisseur {
 
     @Id
@@ -64,19 +73,33 @@ public class Fournisseur {
     @Column(name = "contact_nom", length = 150)
     private String contactNom;
 
-    /**
-     * Propriétaire du fournisseur (le USER qui l'a créé).
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "user_id",
-            foreignKey = @ForeignKey(name = "fk_fournisseur_user")
-    )
-    private User user;
-
     @Column(name = "actif", nullable = false)
     @Builder.Default
     private boolean actif = true;
+
+    // -----------------------------------------
+    // Entreprise propriétaire (obligatoire)
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_fournisseur_entreprise")
+    )
+    private Entreprise entreprise;
+
+    // -----------------------------------------
+    // User propriétaire de la boutique (obligatoire)
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "user_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_fournisseur_user")
+    )
+    private User user;
 
     @CreatedDate
     @Column(name = "date_creation", nullable = false, updatable = false)

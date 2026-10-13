@@ -28,11 +28,11 @@ public class EntrepriseResponseDTO {
     private String logoUrl;       // URL complète
     private boolean actif;
 
-    // Propriétaire
-    private Long userId;
-    private String userEmail;
-    private String userNom;
-    private String userPrenom;
+    // Owner (ADMIN propriétaire)
+    private Long ownerId;
+    private String ownerEmail;
+    private String ownerNom;
+    private String ownerPrenom;
 
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;

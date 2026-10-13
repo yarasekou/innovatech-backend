@@ -1,5 +1,6 @@
 package com.innovatech.api.repository;
 
+import com.innovatech.api.entity.Role;
 import com.innovatech.api.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -20,25 +21,43 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByUsername(String username);
 
-    /**
-     * Liste les SELLERs (employés) d'un patron.
-     */
+    // -----------------------------------------
+    // Hiérarchie SELLER → USER (patron)
+    // -----------------------------------------
+
     List<User> findByPatronId(Long patronId);
 
-    /**
-     * Compte les employés d'un patron.
-     */
     long countByPatronId(Long patronId);
 
-    /**
-     * Charge un user avec son patron.
-     */
+    // -----------------------------------------
+    // Par entreprise et rôle (utilisé par UserService)
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT u FROM User u " +
+            "LEFT JOIN FETCH u.entreprise " +
+            "LEFT JOIN FETCH u.patron " +
+            "LEFT JOIN FETCH u.employes " +
+            "JOIN u.roles r " +
+            "WHERE u.entreprise.id = :entrepriseId " +
+            "AND r = :role " +
+            "ORDER BY u.id")
+    List<User> findByEntrepriseIdAndRole(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("role") Role role);
+
+    // -----------------------------------------
+    // Avec JOIN FETCH
+    // -----------------------------------------
+
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.patron WHERE u.id = :id")
     Optional<User> findByIdWithPatron(@Param("id") Long id);
 
-    /**
-     * Charge un user avec ses employés.
-     */
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.employes WHERE u.id = :id")
     Optional<User> findByIdWithEmployes(@Param("id") Long id);
+
+    @Query("SELECT u FROM User u " +
+            "LEFT JOIN FETCH u.entreprise " +
+            "LEFT JOIN FETCH u.patron " +
+            "WHERE u.id = :id")
+    Optional<User> findByIdWithDetails(@Param("id") Long id);
 }

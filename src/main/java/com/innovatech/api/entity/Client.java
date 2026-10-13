@@ -8,15 +8,24 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
+/**
+ * Client d'une boutique (USER) dans une entreprise.
+ * <p>
+ * Un même client (email) peut exister dans plusieurs boutiques.
+ */
 @Entity
 @Table(
         name = "clients",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_client_email_user", columnNames = {"email", "user_id"})
+                @UniqueConstraint(
+                        name = "uk_client_email_entreprise_user",
+                        columnNames = {"email", "entreprise_id", "user_id"}
+                )
         },
         indexes = {
                 @Index(name = "idx_client_nom", columnList = "nom"),
                 @Index(name = "idx_client_ville", columnList = "ville"),
+                @Index(name = "idx_client_entreprise", columnList = "entreprise_id"),
                 @Index(name = "idx_client_user", columnList = "user_id")
         }
 )
@@ -26,7 +35,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "user")
+@ToString(exclude = {"user", "entreprise"})
 public class Client {
 
     @Id
@@ -61,12 +70,26 @@ public class Client {
     @Builder.Default
     private boolean actif = true;
 
-    /**
-     * Propriétaire du client (le USER qui l'a créé).
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
+    // -----------------------------------------
+    // Entreprise propriétaire (obligatoire)
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_client_entreprise")
+    )
+    private Entreprise entreprise;
+
+    // -----------------------------------------
+    // User propriétaire de la boutique (obligatoire)
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "user_id",
+            nullable = false,
             foreignKey = @ForeignKey(name = "fk_client_user")
     )
     private User user;

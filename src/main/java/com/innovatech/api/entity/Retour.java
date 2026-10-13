@@ -13,17 +13,23 @@ import java.util.List;
 
 /**
  * Retour client d'un ou plusieurs produits d'une commande.
+ * <p>
+ * Scopé par entreprise ET par boutique (user).
  */
 @Entity
 @Table(
         name = "retours",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_retour_numero", columnNames = "numero")
+                @UniqueConstraint(
+                        name = "uk_retour_numero_entreprise_user",
+                        columnNames = {"numero", "entreprise_id", "user_id"}
+                )
         },
         indexes = {
                 @Index(name = "idx_retour_commande", columnList = "commande_id"),
                 @Index(name = "idx_retour_client", columnList = "client_id"),
                 @Index(name = "idx_retour_statut", columnList = "statut"),
+                @Index(name = "idx_retour_entreprise", columnList = "entreprise_id"),
                 @Index(name = "idx_retour_user", columnList = "user_id")
         }
 )
@@ -33,7 +39,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"commande", "client", "user", "lignes"})
+@ToString(exclude = {"commande", "client", "user", "entreprise", "lignes"})
 public class Retour {
 
     @Id
@@ -43,9 +49,26 @@ public class Retour {
     @Column(name = "numero", nullable = false, length = 30)
     private String numero;
 
-    /**
-     * Commande d'origine (obligatoire).
-     */
+    // -----------------------------------------
+    // Relations obligatoires
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_retour_entreprise")
+    )
+    private Entreprise entreprise;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "user_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_retour_user")
+    )
+    private User user;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "commande_id",
@@ -54,9 +77,6 @@ public class Retour {
     )
     private Commande commande;
 
-    /**
-     * Client d'origine (dénormalisé pour l'historique).
-     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "client_id",
@@ -65,15 +85,9 @@ public class Retour {
     )
     private Client client;
 
-    /**
-     * Le USER (vendeur) qui gère le retour.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "user_id",
-            foreignKey = @ForeignKey(name = "fk_retour_user")
-    )
-    private User user;
+    // -----------------------------------------
+    // Données du retour
+    // -----------------------------------------
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut", nullable = false, length = 30)

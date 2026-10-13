@@ -1,10 +1,7 @@
 package com.innovatech.api.mapper;
 
 import com.innovatech.api.dto.FactureResponseDTO;
-import com.innovatech.api.entity.Client;
-import com.innovatech.api.entity.Commande;
-import com.innovatech.api.entity.Facture;
-import com.innovatech.api.entity.StatutFacture;
+import com.innovatech.api.entity.*;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -13,9 +10,14 @@ import java.time.LocalDate;
 public class FactureMapper {
 
     /**
-     * Crée une facture à partir d'une commande, en figeant les données client.
+     * Crée une facture à partir d'une commande, en figeant les données.
      */
-    public Facture toEntity(Commande commande, String numero, LocalDate dateEmission, String notes) {
+    public Facture toEntity(Commande commande,
+                            Entreprise entreprise,
+                            User user,
+                            String numero,
+                            LocalDate dateEmission,
+                            String notes) {
         if (commande == null) return null;
 
         Client client = commande.getClient();
@@ -24,6 +26,8 @@ public class FactureMapper {
 
         return Facture.builder()
                 .numero(numero)
+                .entreprise(entreprise)
+                .user(user)
                 .commande(commande)
                 .client(client)
                 // Snapshot client
@@ -75,6 +79,18 @@ public class FactureMapper {
         if (entity.getCommande() != null) {
             builder.commandeId(entity.getCommande().getId())
                     .commandeNumero(entity.getCommande().getNumero());
+        }
+
+        if (entity.getEntreprise() != null) {
+            builder.entrepriseId(entity.getEntreprise().getId())
+                    .entrepriseNom(entity.getEntreprise().getNom());
+        }
+
+        if (entity.getUser() != null) {
+            builder.userId(entity.getUser().getId())
+                    .userEmail(entity.getUser().getEmail())
+                    .userNom(entity.getUser().getNom())
+                    .userPrenom(entity.getUser().getPrenom());
         }
 
         return builder.build();

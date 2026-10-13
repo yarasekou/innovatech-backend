@@ -20,12 +20,13 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 /**
  * Configuration Spring Security pour l'API.
  * <p>
- * - Stateless (pas de session)
- * - JWT pour l'authentification
- * - Routes publiques : /auth/**, Swagger, Actuator, /uploads/**
- * - Routes /admin/** : ROLE_ADMIN
- * - Routes /sellers/** : ROLE_USER
- * - Autres : authentifié
+ * Hiérarchie des rôles :
+ * <ul>
+ *   <li>ROLE_SUPER_ADMIN : plateforme InnovaTech — voit TOUT</li>
+ *   <li>ROLE_ADMIN       : owner d'UNE entreprise — voit TOUT dans SON entreprise</li>
+ *   <li>ROLE_USER        : manager interne (boutique) — voit SES données</li>
+ *   <li>ROLE_SELLER      : vendeur terrain — voit les données de son patron (USER)</li>
+ * </ul>
  */
 @Configuration
 @EnableWebSecurity
@@ -51,37 +52,54 @@ public class SecurityConfig {
 
                 // 4. Autorisation des requêtes
                 .authorizeHttpRequests(auth -> auth
+                        // -----------------------------------------
                         // Routes publiques
+                        // -----------------------------------------
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
-
-                        // Swagger
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
-
-                        // Fichiers uploadés (images des produits)
                         .requestMatchers("/uploads/**").permitAll()
-
-                        // Preflight CORS
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // Admin (réservé ROLE_ADMIN)
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
+                        // -----------------------------------------
+                        // Endpoints plateforme (SUPER_ADMIN uniquement)
+                        // -----------------------------------------
+                        .requestMatchers("/admin/**").hasRole("SUPER_ADMIN")
 
-                        // SELLERs (un USER gère ses SELLERs)
+                        // -----------------------------------------
+                        // Endpoints USERs (créés par un ADMIN)
+                        // ⚠️ Un ADMIN crée ses USERs
+                        // -----------------------------------------
+                        .requestMatchers("/users/**").hasRole("ADMIN")
+
+                        // -----------------------------------------
+                        // Endpoints SELLERs (créés par un USER)
+                        // -----------------------------------------
                         .requestMatchers("/sellers/**").hasRole("USER")
 
+                        // -----------------------------------------
+                        // Endpoints entreprise
+                        // Accessible à tous les rôles "tenant"
+                        // -----------------------------------------
+                        .requestMatchers("/entreprises/**")
+                        .hasAnyRole("ADMIN", "USER", "SELLER")
+
+                        // -----------------------------------------
                         // Tout le reste : authentifié
+                        // Le filtrage fin (par rôle / entreprise / user)
+                        // est fait dans les services
+                        // -----------------------------------------
                         .anyRequest().authenticated()
                 )
 
                 // 5. Provider d'authentification
                 .authenticationProvider(authenticationProvider())
 
-                // 6. Filtre JWT avant UsernamePasswordAuthenticationFilter
+                // 6. Filtre JWT
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

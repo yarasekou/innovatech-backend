@@ -30,9 +30,13 @@ public class CommandeAchatResponseDTO {
     private LocalDateTime dateModification;
     private List<LigneCommandeAchatResponseDTO> lignes;
 
-    // Acheteur
-    private Long acheteurId;
-    private String acheteurEmail;
-    private String acheteurNom;
-    private String acheteurPrenom;
+    // Entreprise
+    private Long entrepriseId;
+    private String entrepriseNom;
+
+    // User (boutique)
+    private Long userId;
+    private String userEmail;
+    private String userNom;
+    private String userPrenom;
 }

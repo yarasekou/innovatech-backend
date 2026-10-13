@@ -26,8 +26,6 @@ public class RetourService {
 
     private final RetourRepository retourRepository;
     private final CommandeRepository commandeRepository;
-    private final LigneCommandeRepository ligneCommandeRepository;
-    private final ClientRepository clientRepository;
     private final ProduitRepository produitRepository;
     private final UserRepository userRepository;
     private final RetourMapper retourMapper;
@@ -45,29 +43,35 @@ public class RetourService {
     // -----------------------------------------
 
     public List<RetourResponseDTO> findAll() {
-        if (SecurityUtils.isAdmin()) {
-            return retourRepository.findAllWithDetails()
-                    .stream()
-                    .map(retourMapper::toResponseDTO)
-                    .toList();
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return retourRepository.findByEntrepriseIdWithDetails(entreprise.getId())
+                    .stream().map(retourMapper::toResponseDTO).toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return retourRepository.findByUserIdWithDetails(dataOwnerId)
-                .stream()
-                .map(retourMapper::toResponseDTO)
-                .toList();
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return retourRepository.findByEntrepriseIdAndUserIdWithDetails(
+                        entreprise.getId(), shopOwnerId)
+                .stream().map(retourMapper::toResponseDTO).toList();
     }
 
     public RetourResponseDTO findById(Long id) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
         Retour retour;
 
-        if (SecurityUtils.isAdmin()) {
-            retour = retourRepository.findByIdWithDetails(id)
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            retour = retourRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Retour", id));
         } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            retour = retourRepository.findByIdAndUserIdWithDetails(id, dataOwnerId)
+            Long shopOwnerId = resolveShopOwnerId(user);
+            retour = retourRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Retour", id));
         }
 
@@ -75,26 +79,28 @@ public class RetourService {
     }
 
     public List<RetourResponseDTO> findByStatut(StatutRetour statut) {
-        if (SecurityUtils.isAdmin()) {
-            return retourRepository.findAllWithDetails()
-                    .stream()
-                    .filter(r -> r.getStatut() == statut)
-                    .map(retourMapper::toResponseDTO)
-                    .toList();
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return retourRepository.findByEntrepriseIdAndStatutWithDetails(
+                            entreprise.getId(), statut)
+                    .stream().map(retourMapper::toResponseDTO).toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return retourRepository.findByUserIdAndStatutWithDetails(dataOwnerId, statut)
-                .stream()
-                .map(retourMapper::toResponseDTO)
-                .toList();
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return retourRepository.findByEntrepriseIdAndUserIdAndStatutWithDetails(
+                        entreprise.getId(), shopOwnerId, statut)
+                .stream().map(retourMapper::toResponseDTO).toList();
     }
 
     public List<RetourResponseDTO> findByCommande(Long commandeId) {
-        return retourRepository.findByCommandeId(commandeId)
-                .stream()
-                .map(retourMapper::toResponseDTO)
-                .toList();
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Commande commande = findMyCommande(user, entreprise, commandeId);
+        return retourRepository.findByCommandeId(commande.getId())
+                .stream().map(retourMapper::toResponseDTO).toList();
     }
 
     // -----------------------------------------
@@ -103,40 +109,34 @@ public class RetourService {
 
     @Transactional
     public RetourResponseDTO create(RetourRequestDTO dto, String userEmail) {
-        // 1. Charger la commande
-        Commande commande = commandeRepository.findByIdWithDetails(dto.getCommandeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", dto.getCommandeId()));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        // 2. Vérifier que la commande est LIVREE (on ne peut pas retourner avant)
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException("Un ADMIN ne crée pas de retours");
+        }
+
+        Commande commande = findMyCommande(user, entreprise, dto.getCommandeId());
+
         if (commande.getStatut() != StatutCommande.LIVREE) {
             throw new BusinessException(
                     "Seule une commande LIVREE peut faire l'objet d'un retour");
         }
 
-        // 3. Récupérer le user
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + userEmail));
+        Long shopOwnerId = resolveShopOwnerId(user);
+        User shopOwner = userRepository.findById(shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
 
-        // 4. Vérifier que le user a accès à cette commande
-        Long dataOwnerId = getCurrentDataOwnerId();
-        if (commande.getVendeur() == null || !commande.getVendeur().getId().equals(dataOwnerId)) {
-            throw new ResourceNotFoundException("Commande", dto.getCommandeId());
-        }
-
-        // 5. Créer le retour
-        Retour retour = retourMapper.toEntity(dto, commande, commande.getClient(), user);
-        retour.setNumero(genererNumero());
+        Retour retour = retourMapper.toEntity(
+                dto, commande, commande.getClient(), shopOwner, entreprise);
+        retour.setNumero(genererNumero(entreprise.getId(), shopOwnerId));
         retour.setStatut(StatutRetour.DEMANDE);
         retour.setDateDemande(LocalDateTime.now());
 
-        // 6. Traiter les lignes
         for (LigneRetourRequestDTO ligneDTO : dto.getLignes()) {
-            // 6.1 Vérifier que le produit est dans la commande
             Produit produit = produitRepository.findById(ligneDTO.getProduitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", ligneDTO.getProduitId()));
 
-            // 6.2 Trouver la ligne de commande originale
             LigneCommande ligneOriginale = commande.getLignes().stream()
                     .filter(l -> l.getProduit().getId().equals(produit.getId()))
                     .findFirst()
@@ -144,17 +144,12 @@ public class RetourService {
                             "Le produit '%s' n'est pas dans la commande %s",
                             produit.getNom(), commande.getNumero())));
 
-            // 6.3 Vérifier la quantité
             if (ligneDTO.getQuantite() > ligneOriginale.getQuantite()) {
                 throw new BusinessException(String.format(
-                        "Quantité à retourner (%d) supérieure à la quantité commandée (%d) pour '%s'",
-                        ligneDTO.getQuantite(), ligneOriginale.getQuantite(), produit.getNom()));
+                        "Quantité à retourner (%d) supérieure à la commande (%d)",
+                        ligneDTO.getQuantite(), ligneOriginale.getQuantite()));
             }
 
-            // 6.4 Vérifier qu'il n'y a pas déjà un retour en cours pour ce produit
-            verifierPasDeRetourEnCours(commande.getId(), produit.getId(), ligneDTO.getQuantite());
-
-            // 6.5 Créer la ligne
             LigneRetour ligne = LigneRetour.builder()
                     .produit(produit)
                     .quantite(ligneDTO.getQuantite())
@@ -166,10 +161,8 @@ public class RetourService {
             retour.ajouterLigne(ligne);
         }
 
-        // 7. Calculer le montant total
         recalculerMontant(retour);
 
-        // 8. Sauvegarder
         Retour saved = retourRepository.save(retour);
         log.info("Retour {} créé par {} pour la commande {}",
                 saved.getNumero(), userEmail, commande.getNumero());
@@ -177,19 +170,25 @@ public class RetourService {
     }
 
     // -----------------------------------------
-    // CHANGEMENT DE STATUT
+    // STATUT
     // -----------------------------------------
 
     @Transactional
     public RetourResponseDTO changerStatut(Long id, StatutRetour nouveauStatut) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
         Retour retour;
 
-        if (SecurityUtils.isAdmin()) {
-            retour = retourRepository.findByIdWithDetails(id)
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            retour = retourRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Retour", id));
         } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            retour = retourRepository.findByIdAndUserIdWithDetails(id, dataOwnerId)
+            Long shopOwnerId = resolveShopOwnerId(user);
+            retour = retourRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Retour", id));
         }
 
@@ -201,7 +200,6 @@ public class RetourService {
                     "Transition de statut invalide : %s → %s", actuel, nouveauStatut));
         }
 
-        // ⚠️ À LA RÉCEPTION : restituer le stock
         if (nouveauStatut == StatutRetour.RECU) {
             restituerStock(retour);
         }
@@ -220,8 +218,22 @@ public class RetourService {
 
     @Transactional
     public void delete(Long id) {
-        Retour retour = retourRepository.findByIdWithDetails(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Retour", id));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Retour retour;
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            retour = retourRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Retour", id));
+        } else {
+            Long shopOwnerId = resolveShopOwnerId(user);
+            retour = retourRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Retour", id));
+        }
 
         if (retour.getStatut() == StatutRetour.RECU
                 || retour.getStatut() == StatutRetour.REMBOURSE) {
@@ -236,9 +248,10 @@ public class RetourService {
     // MÉTHODES PRIVÉES
     // -----------------------------------------
 
-    private String genererNumero() {
+    private String genererNumero(Long entrepriseId, Long userId) {
         int annee = Year.now().getValue();
-        long count = retourRepository.countByAnnee(annee);
+        long count = retourRepository.countByAnneeAndEntrepriseIdAndUserId(
+                annee, entrepriseId, userId);
         return String.format("RET-%d-%04d", annee, count + 1);
     }
 
@@ -249,54 +262,52 @@ public class RetourService {
         retour.setMontantTotal(total);
     }
 
-    /**
-     * Vérifie qu'il n'y a pas déjà un retour en cours pour ce produit.
-     */
-    private void verifierPasDeRetourEnCours(Long commandeId, Long produitId, int nouvelleQuantite) {
-        List<Retour> retours = retourRepository.findByCommandeId(commandeId);
-
-        int dejaRetourne = retours.stream()
-                .filter(r -> r.getStatut() != StatutRetour.REFUSE)
-                .flatMap(r -> r.getLignes().stream())
-                .filter(l -> l.getProduit().getId().equals(produitId))
-                .mapToInt(LigneRetour::getQuantite)
-                .sum();
-
-        // Récupérer la quantité commandée
-        // (simplifié : on pourrait être plus précis)
-    }
-
-    /**
-     * Restitue le stock des produits retournés.
-     */
     private void restituerStock(Retour retour) {
         for (LigneRetour ligne : retour.getLignes()) {
             Produit produit = ligne.getProduit();
-            int ancienStock = produit.getStock();
-            produit.setStock(ancienStock + ligne.getQuantite());
+            produit.setStock(produit.getStock() + ligne.getQuantite());
             produitRepository.save(produit);
-            log.info("Retour {} : produit {} : stock {} → {} (+{})",
-                    retour.getNumero(), produit.getNom(), ancienStock, produit.getStock(), ligne.getQuantite());
         }
     }
 
-    private Long getCurrentDataOwnerId() {
-        String email = SecurityUtils.getCurrentUserEmail();
-        if (email == null) {
-            throw new BusinessException("Utilisateur non authentifié");
+    private Commande findMyCommande(User user, Entreprise entreprise, Long commandeId) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return commandeRepository
+                    .findByIdAndEntrepriseIdWithDetails(commandeId, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
         }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return commandeRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        commandeId, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+    }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + email));
-
-        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
             if (user.getPatron() == null) {
                 throw new BusinessException("Ce SELLER n'a pas de patron assigné");
             }
             return user.getPatron().getId();
         }
-
         return user.getId();
+    }
+
+    private Entreprise getCurrentEntreprise(User user) {
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+        return user.getEntreprise();
+    }
+
+    private User getCurrentUser() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
     }
 }

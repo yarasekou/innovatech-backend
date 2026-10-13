@@ -13,22 +13,29 @@ import java.time.LocalDateTime;
 /**
  * Facture émise pour une commande client.
  * <p>
- * Contient un <b>snapshot</b> des informations client au moment de l'émission,
- * pour préserver l'intégrité historique en cas de modification ultérieure
- * du client (adresse, SIRET, nom…).
+ * Contient un snapshot des informations client + montants.
+ * Scopée par entreprise ET par boutique (user).
  */
 @Entity
 @Table(
         name = "factures",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_facture_numero", columnNames = "numero"),
-                @UniqueConstraint(name = "uk_facture_commande", columnNames = "commande_id")
+                @UniqueConstraint(
+                        name = "uk_facture_numero_entreprise_user",
+                        columnNames = {"numero", "entreprise_id", "user_id"}
+                ),
+                @UniqueConstraint(
+                        name = "uk_facture_commande",
+                        columnNames = "commande_id"
+                )
         },
         indexes = {
                 @Index(name = "idx_facture_client", columnList = "client_id"),
                 @Index(name = "idx_facture_statut", columnList = "statut"),
                 @Index(name = "idx_facture_date_emission", columnList = "date_emission"),
-                @Index(name = "idx_facture_date_echeance", columnList = "date_echeance")
+                @Index(name = "idx_facture_date_echeance", columnList = "date_echeance"),
+                @Index(name = "idx_facture_entreprise", columnList = "entreprise_id"),
+                @Index(name = "idx_facture_user", columnList = "user_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -37,7 +44,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"commande", "client"})
+@ToString(exclude = {"commande", "client", "entreprise", "user"})
 public class Facture {
 
     @Id
@@ -48,12 +55,25 @@ public class Facture {
     private String numero;
 
     // -----------------------------------------
-    // Liens
+    // Relations obligatoires
     // -----------------------------------------
 
-    /**
-     * Commande d'origine (une facture par commande maximum).
-     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_facture_entreprise")
+    )
+    private Entreprise entreprise;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "user_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_facture_user")
+    )
+    private User user;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "commande_id",
@@ -62,9 +82,6 @@ public class Facture {
     )
     private Commande commande;
 
-    /**
-     * Client actuel (pour la navigation depuis la facture).
-     */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "client_id",
@@ -74,14 +91,14 @@ public class Facture {
     private Client client;
 
     // -----------------------------------------
-    // SNAPSHOT CLIENT (figé à l'émission)
+    // Snapshot client (figé à l'émission)
     // -----------------------------------------
 
     @Column(name = "client_nom", nullable = false, length = 200)
-    private String clientNom;         // "Diop Aminata" (concaténé prénom + nom)
+    private String clientNom;
 
     @Column(name = "client_adresse", length = 255)
-    private String clientAdresse;     // "Sacré-Cœur 3, Dakar"
+    private String clientAdresse;
 
     @Column(name = "client_siret", length = 14)
     private String clientSiret;
@@ -93,7 +110,7 @@ public class Facture {
     private String clientTelephone;
 
     // -----------------------------------------
-    // SNAPSHOT MONTANTS (figé à l'émission)
+    // Snapshot montants
     // -----------------------------------------
 
     @Column(name = "total_ht", nullable = false, precision = 12, scale = 2)
@@ -112,9 +129,6 @@ public class Facture {
     @Column(name = "date_emission", nullable = false)
     private LocalDate dateEmission;
 
-    /**
-     * Date d'échéance = date d'émission + 30 jours.
-     */
     @Column(name = "date_echeance", nullable = false)
     private LocalDate dateEcheance;
 
@@ -152,9 +166,6 @@ public class Facture {
     // Méthodes utilitaires
     // -----------------------------------------
 
-    /**
-     * Vérifie si la facture est en retard de paiement.
-     */
     public boolean estEnRetard() {
         if (statut == StatutFacture.PAYEE || statut == StatutFacture.ANNULEE) {
             return false;
@@ -162,9 +173,6 @@ public class Facture {
         return LocalDate.now().isAfter(dateEcheance);
     }
 
-    /**
-     * Calcule le nombre de jours de retard (0 si non en retard).
-     */
     public long joursDeRetard() {
         if (!estEnRetard()) return 0;
         return java.time.temporal.ChronoUnit.DAYS.between(dateEcheance, LocalDate.now());

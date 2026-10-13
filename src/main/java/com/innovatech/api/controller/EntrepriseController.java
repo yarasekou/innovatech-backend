@@ -7,19 +7,16 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/entreprises")
 @RequiredArgsConstructor
-@Tag(name = "Entreprises", description = "Gestion de l'entreprise du USER")
+@Tag(name = "Entreprises", description = "Gestion de l'entreprise du USER connecté")
 public class EntrepriseController {
 
     private final EntrepriseService entrepriseService;
@@ -29,38 +26,26 @@ public class EntrepriseController {
     // -----------------------------------------
 
     @GetMapping("/me")
-    @Operation(summary = "Mon entreprise (USER ou SELLER → entreprise du patron)")
+    @Operation(summary = "Mon entreprise")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<EntrepriseResponseDTO> getMyEntreprise() {
         return ResponseEntity.ok(entrepriseService.findMyEntreprise());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Détail d'une entreprise (ADMIN ou propriétaire)")
+    @Operation(summary = "Détail d'une entreprise (SUPER_ADMIN ou membre)")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<EntrepriseResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(entrepriseService.findById(id));
     }
 
     // -----------------------------------------
-    // CREATE — USER uniquement
-    // -----------------------------------------
-
-    @PostMapping
-    @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Créer mon entreprise (une seule par USER)")
-    public ResponseEntity<EntrepriseResponseDTO> create(
-            @Valid @RequestBody EntrepriseRequestDTO dto,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        EntrepriseResponseDTO created =
-                entrepriseService.create(dto, userDetails.getUsername());
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
-
-    // -----------------------------------------
-    // UPDATE — USER uniquement
+    // UPDATE — ADMIN (owner) uniquement
+    // ⚠️ Plus de POST : la création se fait à l'inscription via /auth/register-admin
     // -----------------------------------------
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Modifier mon entreprise")
     public ResponseEntity<EntrepriseResponseDTO> update(
             @PathVariable Long id,
@@ -69,11 +54,11 @@ public class EntrepriseController {
     }
 
     // -----------------------------------------
-    // LOGO
+    // LOGO — ADMIN uniquement
     // -----------------------------------------
 
     @PostMapping(value = "/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Uploader / remplacer le logo de mon entreprise")
     public ResponseEntity<EntrepriseResponseDTO> uploadLogo(
             @RequestParam("file") MultipartFile file) {
@@ -81,19 +66,19 @@ public class EntrepriseController {
     }
 
     @DeleteMapping("/logo")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Supprimer le logo de mon entreprise")
     public ResponseEntity<EntrepriseResponseDTO> deleteLogo() {
         return ResponseEntity.ok(entrepriseService.deleteLogo());
     }
 
     // -----------------------------------------
-    // DELETE — ADMIN uniquement
+    // DELETE — SUPER_ADMIN uniquement
     // -----------------------------------------
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Supprimer une entreprise (ADMIN)")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    @Operation(summary = "Supprimer une entreprise (SUPER_ADMIN)")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         entrepriseService.delete(id);
         return ResponseEntity.noContent().build();

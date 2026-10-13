@@ -3,6 +3,7 @@ package com.innovatech.api.mapper;
 import com.innovatech.api.dto.PaiementRequestDTO;
 import com.innovatech.api.dto.PaiementResponseDTO;
 import com.innovatech.api.entity.Commande;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.Paiement;
 import com.innovatech.api.entity.User;
 import org.springframework.stereotype.Component;
@@ -10,11 +11,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class PaiementMapper {
 
-    public Paiement toEntity(PaiementRequestDTO dto, Commande commande, User user) {
+    // -----------------------------------------
+    // CREATE
+    // -----------------------------------------
+
+    public Paiement toEntity(PaiementRequestDTO dto,
+                             Commande commande,
+                             Entreprise entreprise,
+                             User user) {
         if (dto == null) return null;
 
         return Paiement.builder()
                 .commande(commande)
+                .entreprise(entreprise)
                 .user(user)
                 .montant(dto.getMontant())
                 .methode(dto.getMethode())
@@ -22,6 +31,10 @@ public class PaiementMapper {
                 .notes(dto.getNotes())
                 .build();
     }
+
+    // -----------------------------------------
+    // RESPONSE
+    // -----------------------------------------
 
     public PaiementResponseDTO toResponseDTO(Paiement entity) {
         if (entity == null) return null;
@@ -41,6 +54,11 @@ public class PaiementMapper {
                 .datePaiement(entity.getDatePaiement())
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification());
+
+        if (entity.getEntreprise() != null) {
+            builder.entrepriseId(entity.getEntreprise().getId())
+                    .entrepriseNom(entity.getEntreprise().getNom());
+        }
 
         if (entity.getUser() != null) {
             builder.userId(entity.getUser().getId())

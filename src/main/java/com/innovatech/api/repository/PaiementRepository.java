@@ -14,64 +14,115 @@ import java.util.Optional;
 @Repository
 public interface PaiementRepository extends JpaRepository<Paiement, Long> {
 
-    Optional<Paiement> findByNumero(String numero);
+    // -----------------------------------------
+    // Numérotation par boutique
+    // -----------------------------------------
 
-    boolean existsByNumero(String numero);
+    @Query("SELECT COUNT(p) FROM Paiement p " +
+            "WHERE YEAR(p.datePaiement) = :annee " +
+            "AND p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId")
+    long countByAnneeAndEntrepriseIdAndUserId(
+            @Param("annee") int annee,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
 
-    List<Paiement> findByCommandeIdOrderByDatePaiementDesc(Long commandeId);
+    // -----------------------------------------
+    // Somme des paiements VALIDES pour une commande
+    // -----------------------------------------
 
-    List<Paiement> findByStatut(StatutPaiement statut);
-
-    long countByCommandeId(Long commandeId);
-
-    /**
-     * Compte les paiements d'une année (pour numérotation).
-     */
-    @Query("SELECT COUNT(p) FROM Paiement p WHERE YEAR(p.datePaiement) = :annee")
-    long countByAnnee(@Param("annee") int annee);
-
-    /**
-     * Somme des paiements VALIDES pour une commande.
-     */
     @Query("SELECT COALESCE(SUM(p.montant), 0) FROM Paiement p " +
             "WHERE p.commande.id = :commandeId AND p.statut = 'VALIDE'")
     BigDecimal sumMontantValideByCommandeId(@Param("commandeId") Long commandeId);
 
-    /**
-     * Charge un paiement avec sa commande (pour éviter le N+1).
-     */
-    @Query("SELECT p FROM Paiement p JOIN FETCH p.commande WHERE p.id = :id")
-    Optional<Paiement> findByIdWithCommande(@Param("id") Long id);
+    // -----------------------------------------
+    // Par entreprise (ADMIN)
+    // -----------------------------------------
 
     @Query("SELECT p FROM Paiement p " +
             "JOIN FETCH p.commande " +
-            "LEFT JOIN FETCH p.user " +
+            "JOIN FETCH p.user " +
+            "JOIN FETCH p.entreprise " +
+            "WHERE p.entreprise.id = :entrepriseId " +
             "ORDER BY p.datePaiement DESC")
-    List<Paiement> findAllWithCommande();
-
-    @Query("SELECT p FROM Paiement p JOIN FETCH p.commande " +
-            "WHERE p.commande.id = :commandeId ORDER BY p.datePaiement DESC")
-    List<Paiement> findByCommandeIdWithCommande(@Param("commandeId") Long commandeId);
+    List<Paiement> findByEntrepriseIdWithDetails(@Param("entrepriseId") Long entrepriseId);
 
     @Query("SELECT p FROM Paiement p " +
-            "JOIN FETCH p.commande c " +
-            "LEFT JOIN FETCH p.user " +
-            "WHERE p.user.id = :userId " +
-            "ORDER BY p.datePaiement DESC")
-    List<Paiement> findByUserIdWithDetails(@Param("userId") Long userId);
+            "JOIN FETCH p.commande " +
+            "JOIN FETCH p.user " +
+            "JOIN FETCH p.entreprise " +
+            "WHERE p.id = :id AND p.entreprise.id = :entrepriseId")
+    Optional<Paiement> findByIdAndEntrepriseIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId);
+
+    // -----------------------------------------
+    // Par entreprise + user (boutique)
+    // -----------------------------------------
 
     @Query("SELECT p FROM Paiement p " +
-            "JOIN FETCH p.commande c " +
-            "LEFT JOIN FETCH p.user " +
-            "WHERE p.id = :id AND p.user.id = :userId")
-    Optional<Paiement> findByIdAndUserIdWithDetails(@Param("id") Long id,
-                                                    @Param("userId") Long userId);
+            "JOIN FETCH p.commande " +
+            "JOIN FETCH p.user " +
+            "JOIN FETCH p.entreprise " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId " +
+            "ORDER BY p.datePaiement DESC")
+    List<Paiement> findByEntrepriseIdAndUserIdWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
 
-    @Query("SELECT COUNT(p) FROM Paiement p " +
-            "WHERE p.statut = 'VALIDE' AND p.user.id = :userId")
-    long countValideByUserId(@Param("userId") Long userId);
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commande " +
+            "JOIN FETCH p.user " +
+            "JOIN FETCH p.entreprise " +
+            "WHERE p.id = :id " +
+            "AND p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId")
+    Optional<Paiement> findByIdAndEntrepriseIdAndUserIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
 
-    @Query("SELECT COALESCE(SUM(p.montant), 0) FROM Paiement p " +
-            "WHERE p.statut = 'VALIDE' AND p.user.id = :userId")
-    BigDecimal sumMontantValideByUserId(@Param("userId") Long userId);
+    // -----------------------------------------
+    // Par commande
+    // -----------------------------------------
+
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commande " +
+            "JOIN FETCH p.user " +
+            "WHERE p.commande.id = :commandeId " +
+            "ORDER BY p.datePaiement DESC")
+    List<Paiement> findByCommandeIdWithDetails(@Param("commandeId") Long commandeId);
+
+    // -----------------------------------------
+    // Par statut
+    // -----------------------------------------
+
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commande " +
+            "JOIN FETCH p.user " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.statut = :statut")
+    List<Paiement> findByEntrepriseIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("statut") StatutPaiement statut);
+
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commande " +
+            "JOIN FETCH p.user " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId " +
+            "AND p.statut = :statut")
+    List<Paiement> findByEntrepriseIdAndUserIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId,
+            @Param("statut") StatutPaiement statut);
+
+    // -----------------------------------------
+    // Compteurs
+    // -----------------------------------------
+
+    long countByEntrepriseId(Long entrepriseId);
+    long countByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
+    long countByCommandeId(Long commandeId);
 }

@@ -9,13 +9,18 @@ import java.util.List;
 @Component
 public class RetourMapper {
 
-    public Retour toEntity(RetourRequestDTO dto, Commande commande, Client client, User user) {
+    public Retour toEntity(RetourRequestDTO dto,
+                           Commande commande,
+                           Client client,
+                           User user,
+                           Entreprise entreprise) {
         if (dto == null) return null;
 
         return Retour.builder()
                 .commande(commande)
                 .client(client)
                 .user(user)
+                .entreprise(entreprise)
                 .motif(dto.getMotif())
                 .notes(dto.getNotes())
                 .statut(StatutRetour.DEMANDE)
@@ -51,6 +56,11 @@ public class RetourMapper {
                     .clientEmail(entity.getClient().getEmail());
         }
 
+        if (entity.getEntreprise() != null) {
+            builder.entrepriseId(entity.getEntreprise().getId())
+                    .entrepriseNom(entity.getEntreprise().getNom());
+        }
+
         if (entity.getUser() != null) {
             builder.userId(entity.getUser().getId())
                     .userEmail(entity.getUser().getEmail());
@@ -61,7 +71,6 @@ public class RetourMapper {
 
     private LigneRetourResponseDTO toLigneDTO(LigneRetour ligne) {
         if (ligne == null) return null;
-
         return LigneRetourResponseDTO.builder()
                 .id(ligne.getId())
                 .produitId(ligne.getProduit() != null ? ligne.getProduit().getId() : null)

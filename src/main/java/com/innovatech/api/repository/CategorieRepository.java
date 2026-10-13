@@ -12,63 +12,139 @@ import java.util.Optional;
 @Repository
 public interface CategorieRepository extends JpaRepository<Categorie, Long> {
 
-    Optional<Categorie> findBySlug(String slug);
+    // -----------------------------------------
+    // Scoped par entreprise (ADMIN)
+    // -----------------------------------------
 
-    boolean existsBySlug(String slug);
+    List<Categorie> findByEntrepriseId(Long entrepriseId);
 
-    List<Categorie> findByParentIsNull();
+    List<Categorie> findByEntrepriseIdAndActifTrue(Long entrepriseId);
 
-    List<Categorie> findByParentId(Long parentId);
+    List<Categorie> findByEntrepriseIdAndParentIsNull(Long entrepriseId);
 
-    List<Categorie> findByActifTrue();
+    // -----------------------------------------
+    // Scoped par entreprise + user (boutique)
+    // -----------------------------------------
 
-    List<Categorie> findByNiveau(Integer niveau);
+    Optional<Categorie> findBySlugAndEntrepriseIdAndUserId(
+            String slug, Long entrepriseId, Long userId);
 
-    long countByParentId(Long parentId);
+    boolean existsBySlugAndEntrepriseIdAndUserId(
+            String slug, Long entrepriseId, Long userId);
 
-    /**
-     * Charge une catégorie avec son parent (pour éviter le N+1).
-     */
-    @Query("SELECT c FROM Categorie c LEFT JOIN FETCH c.parent WHERE c.id = :id")
+    List<Categorie> findByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
+
+    List<Categorie> findByEntrepriseIdAndUserIdAndActifTrue(Long entrepriseId, Long userId);
+
+    List<Categorie> findByEntrepriseIdAndUserIdAndParentIsNull(Long entrepriseId, Long userId);
+
+    List<Categorie> findByEntrepriseIdAndUserIdAndParentId(
+            Long entrepriseId, Long userId, Long parentId);
+
+    long countByEntrepriseIdAndUserIdAndParentId(
+            Long entrepriseId, Long userId, Long parentId);
+
+    // -----------------------------------------
+    // Avec JOIN FETCH
+    // -----------------------------------------
+
+    @Query("SELECT c FROM Categorie c " +
+            "LEFT JOIN FETCH c.parent " +
+            "LEFT JOIN FETCH c.entreprise " +
+            "LEFT JOIN FETCH c.user " +
+            "WHERE c.id = :id")
     Optional<Categorie> findByIdWithParent(@Param("id") Long id);
 
-    /**
-     * Charge toutes les catégories racines avec leurs enfants directs.
-     */
-    @Query("SELECT DISTINCT c FROM Categorie c LEFT JOIN FETCH c.enfants WHERE c.parent IS NULL ORDER BY c.nom")
-    List<Categorie> findRacinesWithEnfants();
+    @Query("SELECT c FROM Categorie c " +
+            "LEFT JOIN FETCH c.parent " +
+            "LEFT JOIN FETCH c.user " +
+            "WHERE c.id = :id AND c.entreprise.id = :entrepriseId")
+    Optional<Categorie> findByIdAndEntrepriseIdWithParent(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId);
 
-    /**
-     * Charge une catégorie avec ses enfants directs.
-     */
-    @Query("SELECT DISTINCT c FROM Categorie c LEFT JOIN FETCH c.enfants WHERE c.id = :id")
+    @Query("SELECT c FROM Categorie c " +
+            "LEFT JOIN FETCH c.parent " +
+            "LEFT JOIN FETCH c.user " +
+            "WHERE c.id = :id " +
+            "AND c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId")
+    Optional<Categorie> findByIdAndEntrepriseIdAndUserIdWithParent(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT c FROM Categorie c " +
+            "LEFT JOIN FETCH c.enfants " +
+            "WHERE c.id = :id")
     Optional<Categorie> findByIdWithEnfants(@Param("id") Long id);
 
-    /**
-     * Catégories feuilles (celles qui n'ont AUCUN enfant).
-     */
-    @Query("""
-    SELECT c FROM Categorie c
-    WHERE c.actif = true
-      AND NOT EXISTS (SELECT 1 FROM Categorie enfant WHERE enfant.parent.id = c.id)
-    ORDER BY c.cheminComplet
-    """)
-    List<Categorie> findFeuilles();
+    // -----------------------------------------
+    // Feuilles (sans enfant) — niveau entreprise
+    // -----------------------------------------
 
-    /**
-     * Catégories feuilles descendantes d'une catégorie donnée
-     * (récursif via chemin_complet).
-     */
     @Query("""
-    SELECT c FROM Categorie c
-    WHERE c.actif = true
-      AND c.cheminComplet LIKE CONCAT(:chemin, '%')
-      AND c.id <> :categorieId
-      AND NOT EXISTS (SELECT 1 FROM Categorie enfant WHERE enfant.parent.id = c.id)
-    ORDER BY c.cheminComplet
+        SELECT c FROM Categorie c
+        WHERE c.actif = true
+          AND c.entreprise.id = :entrepriseId
+          AND NOT EXISTS (
+              SELECT 1 FROM Categorie enfant WHERE enfant.parent.id = c.id
+          )
+        ORDER BY c.cheminComplet
     """)
-    List<Categorie> findFeuillesDescendants(
+    List<Categorie> findFeuillesByEntrepriseId(@Param("entrepriseId") Long entrepriseId);
+
+    @Query("""
+        SELECT c FROM Categorie c
+        WHERE c.actif = true
+          AND c.entreprise.id = :entrepriseId
+          AND c.user.id = :userId
+          AND NOT EXISTS (
+              SELECT 1 FROM Categorie enfant WHERE enfant.parent.id = c.id
+          )
+        ORDER BY c.cheminComplet
+    """)
+    List<Categorie> findFeuillesByEntrepriseIdAndUserId(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    // -----------------------------------------
+    // Feuilles descendantes — niveau entreprise
+    // -----------------------------------------
+
+    @Query("""
+        SELECT c FROM Categorie c
+        WHERE c.actif = true
+          AND c.entreprise.id = :entrepriseId
+          AND c.cheminComplet LIKE CONCAT(:chemin, '%')
+          AND c.id <> :categorieId
+          AND NOT EXISTS (
+              SELECT 1 FROM Categorie enfant WHERE enfant.parent.id = c.id
+          )
+        ORDER BY c.cheminComplet
+    """)
+    List<Categorie> findFeuillesDescendantsByEntrepriseId(
             @Param("categorieId") Long categorieId,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("chemin") String chemin
+    );
+
+    @Query("""
+        SELECT c FROM Categorie c
+        WHERE c.actif = true
+          AND c.entreprise.id = :entrepriseId
+          AND c.user.id = :userId
+          AND c.cheminComplet LIKE CONCAT(:chemin, '%')
+          AND c.id <> :categorieId
+          AND NOT EXISTS (
+              SELECT 1 FROM Categorie enfant WHERE enfant.parent.id = c.id
+          )
+        ORDER BY c.cheminComplet
+    """)
+    List<Categorie> findFeuillesDescendantsByEntrepriseIdAndUserId(
+            @Param("categorieId") Long categorieId,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId,
             @Param("chemin") String chemin
     );
 }

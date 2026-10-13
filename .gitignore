@@ -1,33 +1,75 @@
-HELP.md
+# ============================================================
+# Java / Maven
+# ============================================================
 target/
-.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
-
-### IntelliJ IDEA ###
-.idea
-*.iws
+# ============================================================
+# IDE
+# ============================================================
+.idea/
 *.iml
 *.ipr
-
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
-
-### VS Code ###
+*.iws
 .vscode/
+.project
+.classpath
+.settings/
+.factorypath
+*.swp
+*~
+
+# ============================================================
+# Spring Boot / Config locale
+# ============================================================
+application-local.properties
+application-secret.properties
+.mvn/
+mvnw
+mvnw.cmd
+
+# ============================================================
+# Uploads (fichiers générés)
+# ============================================================
+uploads/
+uploads/*
+
+# ============================================================
+# Logs
+# ============================================================
+*.log
+logs/
+log/
+
+# ============================================================
+# OS
+# ============================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ============================================================
+# Fichiers de test HTTP locaux (⚠️ optionnel)
+# ============================================================
+# Décommente si tu ne veux PAS versionner les .http
+# *.http
+# !.http-client.env.json
+
+# ============================================================
+# Secrets (⚠️ JAMAIS versionnés)
+# ============================================================
+*.pem
+*.key
+*.p12
+*.jks
+.env
+.env.local

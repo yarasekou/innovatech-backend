@@ -12,17 +12,27 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Commande client, scopée par entreprise ET par boutique (user).
+ * <p>
+ * Le numéro est unique par (entreprise_id, user_id) → deux boutiques
+ * peuvent avoir chacune leur CMD-2026-0001.
+ */
 @Entity
 @Table(
         name = "commandes",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_commande_numero", columnNames = "numero")
+                @UniqueConstraint(
+                        name = "uk_commande_numero_entreprise_user",
+                        columnNames = {"numero", "entreprise_id", "user_id"}
+                )
         },
         indexes = {
                 @Index(name = "idx_commande_client", columnList = "client_id"),
                 @Index(name = "idx_commande_statut", columnList = "statut"),
                 @Index(name = "idx_commande_date", columnList = "date_commande"),
-                @Index(name = "idx_commande_vendeur", columnList = "vendeur_id")   // ← NOUVEAU
+                @Index(name = "idx_commande_entreprise", columnList = "entreprise_id"),
+                @Index(name = "idx_commande_user", columnList = "user_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -31,7 +41,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"client", "vendeur", "lignes"})
+@ToString(exclude = {"client", "user", "entreprise", "lignes"})
 public class Commande {
 
     @Id
@@ -41,6 +51,26 @@ public class Commande {
     @Column(name = "numero", nullable = false, length = 30)
     private String numero;
 
+    // -----------------------------------------
+    // Relations obligatoires
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_commande_entreprise")
+    )
+    private Entreprise entreprise;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "user_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_commande_user")
+    )
+    private User user;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "client_id",
@@ -49,15 +79,9 @@ public class Commande {
     )
     private Client client;
 
-    /**
-     * Le USER (vendeur) qui a créé la commande.
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "vendeur_id",
-            foreignKey = @ForeignKey(name = "fk_commande_vendeur")
-    )
-    private User vendeur;
+    // -----------------------------------------
+    // Statut et montants
+    // -----------------------------------------
 
     @Enumerated(EnumType.STRING)
     @Column(name = "statut", nullable = false, length = 30)
@@ -85,6 +109,10 @@ public class Commande {
 
     @Column(name = "date_livraison_prevue")
     private LocalDate dateLivraisonPrevue;
+
+    // -----------------------------------------
+    // Lignes
+    // -----------------------------------------
 
     @OneToMany(
             mappedBy = "commande",

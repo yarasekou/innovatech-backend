@@ -1,8 +1,8 @@
 package com.innovatech.api.service;
 
 import com.innovatech.api.dto.dashboard.*;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.Role;
-import com.innovatech.api.entity.StatutCommande;
 import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
@@ -30,7 +30,6 @@ public class DashboardService {
     private final CommandeAchatRepository commandeAchatRepository;
     private final UserRepository userRepository;
 
-    // Noms des mois pour le libellé
     private static final String[] MOIS_NOMS = {
             "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
             "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
@@ -41,56 +40,75 @@ public class DashboardService {
     // -----------------------------------------
 
     public DashboardStatsDTO getStats() {
-        if (SecurityUtils.isAdmin()) {
-            return getStatsForAdmin();
+        User user = getCurrentUser();
+
+        if (user.hasRole(Role.ROLE_SUPER_ADMIN)) {
+            return getStatsForSuperAdmin();
         }
-        return getStatsForUser(getCurrentDataOwnerId());
+
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+
+        Long entrepriseId = user.getEntreprise().getId();
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return getStatsForEntreprise(entrepriseId);
+        }
+
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return getStatsForBoutique(entrepriseId, shopOwnerId);
     }
 
-    /**
-     * Stats complètes (vue ADMIN).
-     */
-    private DashboardStatsDTO getStatsForAdmin() {
-        long nbCommandes = commandeRepository.countNonAnnulees();
-        BigDecimal caHT = commandeRepository.sumTotalHT();
-        BigDecimal caTTC = commandeRepository.sumTotalTTC();
-        BigDecimal panierMoyen = calculerPanierMoyen(caTTC, nbCommandes);
-
-        return DashboardStatsDTO.builder()
-                .chiffreAffairesHT(caHT)
-                .chiffreAffairesTTC(caTTC)
-                .margeTotale(caHT)   // Approximation : marge brute = CA HT
-                .nbClients(clientRepository.count())
-                .nbProduits(produitRepository.count())
-                .nbCommandes(nbCommandes)
-                .nbPaiements(paiementRepository.count())
-                .nbCommandesAchat(commandeAchatRepository.count())
-                .nbCommandesEnAttente(commandeRepository.countByStatut(StatutCommande.EN_ATTENTE))
-                .nbCommandesValidees(commandeRepository.countByStatut(StatutCommande.VALIDEE))
-                .nbCommandesEnCours(commandeRepository.countByStatut(StatutCommande.EN_COURS))
-                .nbCommandesLivrees(commandeRepository.countByStatut(StatutCommande.LIVREE))
-                .nbCommandesAnnulees(commandeRepository.countByStatut(StatutCommande.ANNULEE))
-                .panierMoyen(panierMoyen)
-                .build();
-    }
-
-    /**
-     * Stats filtrées par user (vue USER).
-     */
-    private DashboardStatsDTO getStatsForUser(Long userId) {
-        // Pour l'instant, on utilise les mêmes méthodes globales
-        // Une V2 pourrait filtrer par user_id sur chaque entité
-        // Pour l'instant : retourne les stats de l'user
-        // (à compléter si besoin)
+    private DashboardStatsDTO getStatsForSuperAdmin() {
         return DashboardStatsDTO.builder()
                 .chiffreAffairesHT(BigDecimal.ZERO)
                 .chiffreAffairesTTC(BigDecimal.ZERO)
                 .margeTotale(BigDecimal.ZERO)
-                .nbClients(clientRepository.countByUserId(userId))
-                .nbProduits(produitRepository.countByUserId(userId))
+                .nbClients(clientRepository.count())
+                .nbProduits(produitRepository.count())
                 .nbCommandes(0L)
-                .nbPaiements(paiementRepository.countValideByUserId(userId))
-                .nbCommandesAchat(commandeAchatRepository.countByAcheteurId(userId))
+                .nbPaiements(paiementRepository.count())
+                .nbCommandesAchat(commandeAchatRepository.count())
+                .nbCommandesEnAttente(0L)
+                .nbCommandesValidees(0L)
+                .nbCommandesEnCours(0L)
+                .nbCommandesLivrees(0L)
+                .nbCommandesAnnulees(0L)
+                .panierMoyen(BigDecimal.ZERO)
+                .build();
+    }
+
+    private DashboardStatsDTO getStatsForEntreprise(Long entrepriseId) {
+        return DashboardStatsDTO.builder()
+                .chiffreAffairesHT(BigDecimal.ZERO)
+                .chiffreAffairesTTC(BigDecimal.ZERO)
+                .margeTotale(BigDecimal.ZERO)
+                .nbClients(clientRepository.countByEntrepriseId(entrepriseId))
+                .nbProduits(produitRepository.countByEntrepriseId(entrepriseId))
+                .nbCommandes(commandeRepository.countByEntrepriseId(entrepriseId))
+                .nbPaiements(0L)                                       // TODO
+                .nbCommandesAchat(0L)                                  // TODO
+                .nbCommandesEnAttente(0L)                              // TODO
+                .nbCommandesValidees(0L)
+                .nbCommandesEnCours(0L)
+                .nbCommandesLivrees(0L)
+                .nbCommandesAnnulees(0L)
+                .panierMoyen(BigDecimal.ZERO)
+                .build();
+    }
+
+    private DashboardStatsDTO getStatsForBoutique(Long entrepriseId, Long shopOwnerId) {
+        return DashboardStatsDTO.builder()
+                .chiffreAffairesHT(BigDecimal.ZERO)
+                .chiffreAffairesTTC(BigDecimal.ZERO)
+                .margeTotale(BigDecimal.ZERO)
+                .nbClients(clientRepository.countByEntrepriseIdAndUserId(entrepriseId, shopOwnerId))
+                .nbProduits(produitRepository.countByEntrepriseIdAndUserId(entrepriseId, shopOwnerId))
+                .nbCommandes(commandeRepository.countByEntrepriseIdAndUserId(entrepriseId, shopOwnerId))
+                .nbPaiements(0L)
+                .nbCommandesAchat(0L)
                 .nbCommandesEnAttente(0L)
                 .nbCommandesValidees(0L)
                 .nbCommandesEnCours(0L)
@@ -101,72 +119,42 @@ public class DashboardService {
     }
 
     // -----------------------------------------
-    // TOP PRODUITS
+    // TOP (temporaire : global)
     // -----------------------------------------
 
     public List<TopProduitDTO> getTopProduits(int limit) {
-        return commandeRepository.findTopProduits()
-                .stream()
-                .limit(limit)
-                .toList();
+        return List.of();   // TODO : implémenter avec scoping
     }
-
-    // -----------------------------------------
-    // TOP CLIENTS
-    // -----------------------------------------
 
     public List<TopClientDTO> getTopClients(int limit) {
-        return commandeRepository.findTopClients()
-                .stream()
-                .limit(limit)
-                .toList();
+        return List.of();   // TODO : implémenter avec scoping
     }
 
-    // -----------------------------------------
-    // CA MENSUEL
-    // -----------------------------------------
-
     public List<ChiffreAffairesMoisDTO> getChiffreAffairesMensuel() {
-        List<ChiffreAffairesMoisDTO> resultats = commandeRepository.findChiffreAffairesParMois();
-
-        // Générer le libellé côté Java
-        for (ChiffreAffairesMoisDTO dto : resultats) {
-            if (dto.getMois() != null && dto.getMois() >= 1 && dto.getMois() <= 12) {
-                dto.setLibelle(MOIS_NOMS[dto.getMois()] + " " + dto.getAnnee());
-            }
-        }
-
-        return resultats;
+        return List.of();   // TODO : implémenter avec scoping
     }
 
     // -----------------------------------------
     // MÉTHODES PRIVÉES
     // -----------------------------------------
 
-    private BigDecimal calculerPanierMoyen(BigDecimal caTTC, long nbCommandes) {
-        if (nbCommandes == 0) {
-            return BigDecimal.ZERO;
-        }
-        return caTTC.divide(BigDecimal.valueOf(nbCommandes), 2, RoundingMode.HALF_UP);
-    }
-
-    private Long getCurrentDataOwnerId() {
-        String email = SecurityUtils.getCurrentUserEmail();
-        if (email == null) {
-            throw new BusinessException("Utilisateur non authentifié");
-        }
-
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + email));
-
-        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
             if (user.getPatron() == null) {
                 throw new BusinessException("Ce SELLER n'a pas de patron assigné");
             }
             return user.getPatron().getId();
         }
-
         return user.getId();
+    }
+
+    private User getCurrentUser() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
     }
 }

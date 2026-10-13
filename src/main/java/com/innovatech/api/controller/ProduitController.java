@@ -19,54 +19,54 @@ import java.util.List;
 @RestController
 @RequestMapping("/produits")
 @RequiredArgsConstructor
-@Tag(name = "Produits", description = "Catalogue des produits et services")
+@Tag(name = "Produits", description = "Produits scopés par entreprise")
 public class ProduitController {
 
     private final ProduitService produitService;
 
     // -----------------------------------------
-    // READ — Tous les rôles authentifiés
+    // READ
     // -----------------------------------------
 
     @GetMapping
-    @Operation(summary = "Liste tous les produits accessibles par l'utilisateur")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<ProduitResponseDTO>> getAll() {
         return ResponseEntity.ok(produitService.findAll());
     }
 
     @GetMapping("/actifs")
-    @Operation(summary = "Liste les produits actifs accessibles")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<ProduitResponseDTO>> getActifs() {
         return ResponseEntity.ok(produitService.findAllActifs());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Détail d'un produit")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<ProduitResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(produitService.findById(id));
     }
 
     @GetMapping("/reference/{reference}")
-    @Operation(summary = "Détail d'un produit par référence")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<ProduitResponseDTO> getByReference(@PathVariable String reference) {
         return ResponseEntity.ok(produitService.findByReference(reference));
     }
 
     @GetMapping("/search")
-    @Operation(summary = "Rechercher des produits")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<ProduitResponseDTO>> search(@RequestParam("q") String query) {
         return ResponseEntity.ok(produitService.search(query));
     }
 
     @GetMapping("/stock-faible")
-    @Operation(summary = "Produits en stock faible")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<ProduitResponseDTO>> getStockFaible(
             @RequestParam(value = "seuil", defaultValue = "10") Integer seuil) {
         return ResponseEntity.ok(produitService.findStockFaible(seuil));
     }
 
     @GetMapping("/categorie/{categorieId}")
-    @Operation(summary = "Produits d'une catégorie (avec option descendants)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<ProduitResponseDTO>> getByCategorie(
             @PathVariable Long categorieId,
             @RequestParam(value = "deep", defaultValue = "false") boolean deep) {
@@ -74,28 +74,26 @@ public class ProduitController {
     }
 
     // -----------------------------------------
-    // CREATE — USER uniquement
+    // CREATE
     // -----------------------------------------
 
     @PostMapping
-    @Operation(summary = "Créer un nouveau produit (USER uniquement)")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
+    @Operation(summary = "Créer un produit dans mon entreprise")
     public ResponseEntity<ProduitResponseDTO> create(
             @Valid @RequestBody ProduitRequestDTO dto,
             @AuthenticationPrincipal UserDetails userDetails) {
-
         String userEmail = userDetails != null ? userDetails.getUsername() : null;
         ProduitResponseDTO created = produitService.create(dto, userEmail);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     // -----------------------------------------
-    // UPDATE — USER uniquement
+    // UPDATE
     // -----------------------------------------
 
     @PutMapping("/{id}")
-    @Operation(summary = "Modifier un produit (USER uniquement)")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<ProduitResponseDTO> update(
             @PathVariable Long id,
             @Valid @RequestBody ProduitRequestDTO dto) {
@@ -103,20 +101,18 @@ public class ProduitController {
     }
 
     // -----------------------------------------
-    // DELETE — USER uniquement
+    // DELETE / DEACTIVATE
     // -----------------------------------------
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Supprimer un produit (USER uniquement)")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         produitService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/{id}/deactivate")
-    @Operation(summary = "Désactiver un produit (USER uniquement)")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<Void> deactivate(@PathVariable Long id) {
         produitService.deactivate(id);
         return ResponseEntity.noContent().build();

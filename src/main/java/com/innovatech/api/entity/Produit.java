@@ -16,18 +16,15 @@ import java.util.List;
 @Table(
         name = "produits",
         uniqueConstraints = {
-                // ⚠️ AVANT : reference unique GLOBALEMENT
-                // @UniqueConstraint(name = "uk_produit_reference", columnNames = "reference")
-
-                // ✅ APRÈS : reference unique PAR user
                 @UniqueConstraint(
-                        name = "uk_produit_reference_user",
-                        columnNames = {"reference", "user_id"}
+                        name = "uk_produit_reference_entreprise_user",
+                        columnNames = {"reference", "entreprise_id", "user_id"}
                 )
         },
         indexes = {
                 @Index(name = "idx_produit_nom", columnList = "nom"),
                 @Index(name = "idx_produit_categorie", columnList = "categorie_id"),
+                @Index(name = "idx_produit_entreprise", columnList = "entreprise_id"),
                 @Index(name = "idx_produit_user", columnList = "user_id")
         }
 )
@@ -37,7 +34,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"categorie", "user"})   // ← exclure "user" aussi
+@ToString(exclude = {"categorie", "user", "entreprise", "photos"})
 public class Produit {
 
     @Id
@@ -65,8 +62,21 @@ public class Produit {
     private Integer stock = 0;
 
     // -----------------------------------------
-    // Catégorie
+    // Entreprise propriétaire (obligatoire)
     // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_produit_entreprise")
+    )
+    private Entreprise entreprise;
+
+    // -----------------------------------------
+    // Catégorie (même entreprise)
+    // -----------------------------------------
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "categorie_id",
@@ -75,11 +85,13 @@ public class Produit {
     private Categorie categorie;
 
     // -----------------------------------------
-    // Utilisateur créateur
+    // User créateur (traçabilité)
     // -----------------------------------------
-    @ManyToOne(fetch = FetchType.LAZY)
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
             name = "user_id",
+            nullable = false,
             foreignKey = @ForeignKey(name = "fk_produit_user")
     )
     private User user;
@@ -95,6 +107,19 @@ public class Produit {
     @LastModifiedDate
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
+
+    // -----------------------------------------
+    // Photos
+    // -----------------------------------------
+
+    @OneToMany(
+            mappedBy = "produit",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true,
+            fetch = FetchType.LAZY
+    )
+    @Builder.Default
+    private List<PhotoProduit> photos = new ArrayList<>();
 
     // -----------------------------------------
     // MÉTHODES CALCULÉES
@@ -115,13 +140,4 @@ public class Produit {
                 .multiply(new BigDecimal("100"))
                 .divide(prixAchat, 2, RoundingMode.HALF_UP);
     }
-
-    @OneToMany(
-            mappedBy = "produit",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true,
-            fetch = FetchType.LAZY
-    )
-    @Builder.Default
-    private List<PhotoProduit> photos = new ArrayList<>();
 }

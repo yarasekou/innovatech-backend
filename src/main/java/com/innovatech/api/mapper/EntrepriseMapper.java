@@ -16,7 +16,11 @@ public class EntrepriseMapper {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public Entreprise toEntity(EntrepriseRequestDTO dto, User user) {
+    // -----------------------------------------
+    // CREATE
+    // -----------------------------------------
+
+    public Entreprise toEntity(EntrepriseRequestDTO dto, User owner) {
         if (dto == null) return null;
 
         return Entreprise.builder()
@@ -33,9 +37,13 @@ public class EntrepriseMapper {
                         ? dto.getTvaPercent()
                         : new java.math.BigDecimal("18.00"))
                 .actif(true)
-                .user(user)
+                .owner(owner)
                 .build();
     }
+
+    // -----------------------------------------
+    // UPDATE
+    // -----------------------------------------
 
     public void updateEntity(Entreprise entity, EntrepriseRequestDTO dto) {
         entity.setNom(dto.getNom());
@@ -50,9 +58,14 @@ public class EntrepriseMapper {
         entity.setTvaPercent(dto.getTvaPercent() != null
                 ? dto.getTvaPercent()
                 : entity.getTvaPercent());
-        // ⚠️ Le user ne change PAS en update
+        // ⚠️ Le slug est géré dans le service (car il dépend du nom)
+        // ⚠️ L'owner ne change PAS
         // ⚠️ Le logo se gère via un endpoint dédié
     }
+
+    // -----------------------------------------
+    // RESPONSE
+    // -----------------------------------------
 
     public EntrepriseResponseDTO toResponseDTO(Entreprise entity) {
         if (entity == null) return null;
@@ -81,12 +94,12 @@ public class EntrepriseMapper {
             builder.logoUrl(contextPath + "/" + uploadDir + "/entreprises/" + entity.getLogo());
         }
 
-        // Propriétaire
-        if (entity.getUser() != null) {
-            builder.userId(entity.getUser().getId())
-                    .userEmail(entity.getUser().getEmail())
-                    .userNom(entity.getUser().getNom())
-                    .userPrenom(entity.getUser().getPrenom());
+        // Owner (ADMIN propriétaire)
+        if (entity.getOwner() != null) {
+            builder.ownerId(entity.getOwner().getId())
+                    .ownerEmail(entity.getOwner().getEmail())
+                    .ownerNom(entity.getOwner().getNom())
+                    .ownerPrenom(entity.getOwner().getPrenom());
         }
 
         return builder.build();

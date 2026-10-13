@@ -33,9 +33,6 @@ public class PaiementService {
     private final PaiementMapper paiementMapper;
     private final UserRepository userRepository;
 
-    /**
-     * Transitions de statut autorisées.
-     */
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
             "EN_ATTENTE->VALIDE",
             "EN_ATTENTE->ANNULE",
@@ -48,55 +45,82 @@ public class PaiementService {
     // -----------------------------------------
 
     public List<PaiementResponseDTO> findAll() {
-        // SELLER : accès refusé
-        if (SecurityUtils.isSeller()) {
-            throw new BusinessException("Accès aux paiements non autorisé");
-        }
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            return paiementRepository.findAllWithCommande()
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return paiementRepository.findByEntrepriseIdWithDetails(entreprise.getId())
                     .stream()
                     .map(paiementMapper::toResponseDTO)
                     .toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return paiementRepository.findByUserIdWithDetails(dataOwnerId)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return paiementRepository.findByEntrepriseIdAndUserIdWithDetails(
+                        entreprise.getId(), shopOwnerId)
                 .stream()
                 .map(paiementMapper::toResponseDTO)
                 .toList();
     }
 
     public PaiementResponseDTO findById(Long id) {
-        Paiement paiement = paiementRepository.findByIdWithCommande(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Paiement", id));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Paiement paiement;
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            paiement = paiementRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Paiement", id));
+        } else {
+            Long shopOwnerId = resolveShopOwnerId(user);
+            paiement = paiementRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Paiement", id));
+        }
+
         return paiementMapper.toResponseDTO(paiement);
     }
 
     public List<PaiementResponseDTO> findByCommande(Long commandeId) {
-        if (!commandeRepository.existsById(commandeId)) {
-            throw new ResourceNotFoundException("Commande", commandeId);
-        }
-        return paiementRepository.findByCommandeIdWithCommande(commandeId)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Commande commande = findMyCommande(user, entreprise, commandeId);
+
+        return paiementRepository.findByCommandeIdWithDetails(commande.getId())
                 .stream()
                 .map(paiementMapper::toResponseDTO)
                 .toList();
     }
 
     public List<PaiementResponseDTO> findByStatut(StatutPaiement statut) {
-        return paiementRepository.findByStatut(statut)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return paiementRepository.findByEntrepriseIdAndStatutWithDetails(
+                            entreprise.getId(), statut)
+                    .stream()
+                    .map(paiementMapper::toResponseDTO)
+                    .toList();
+        }
+
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return paiementRepository.findByEntrepriseIdAndUserIdAndStatutWithDetails(
+                        entreprise.getId(), shopOwnerId, statut)
                 .stream()
                 .map(paiementMapper::toResponseDTO)
                 .toList();
     }
 
-    /**
-     * Calcule le reste à payer d'une commande.
-     */
     public ResteAPayerDTO calculerReste(Long commandeId) {
-        Commande commande = commandeRepository.findById(commandeId)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
+        Commande commande = findMyCommande(user, entreprise, commandeId);
         return calculerReste(commande);
     }
 
@@ -106,23 +130,18 @@ public class PaiementService {
 
     @Transactional
     public PaiementResponseDTO create(PaiementRequestDTO dto, String userEmail) {
-        Commande commande = commandeRepository.findById(dto.getCommandeId())
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", dto.getCommandeId()));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException(
+                    "Un ADMIN ne crée pas de paiements. Créez un USER pour cela.");
+        }
+
+        Commande commande = findMyCommande(user, entreprise, dto.getCommandeId());
 
         if (commande.getStatut() == StatutCommande.ANNULEE) {
             throw new BusinessException("Impossible de payer une commande annulée");
-        }
-
-        // ⚠️ Vérifier que le user peut payer cette commande
-        User user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + userEmail));
-
-        // Un USER peut payer uniquement SES commandes
-        // Un SELLER peut payer les commandes de son patron
-        Long dataOwnerId = getCurrentDataOwnerId();
-        if (!commande.getVendeur().getId().equals(dataOwnerId)) {
-            throw new ResourceNotFoundException("Commande", dto.getCommandeId());
         }
 
         ResteAPayerDTO solde = calculerReste(commande);
@@ -132,13 +151,18 @@ public class PaiementService {
                     solde.getResteAPayer(), dto.getMontant()));
         }
 
-        Paiement paiement = paiementMapper.toEntity(dto, commande, user);
-        paiement.setNumero(genererNumero());
+        Long shopOwnerId = resolveShopOwnerId(user);
+        User shopOwner = userRepository.findById(shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
+
+        Paiement paiement = paiementMapper.toEntity(dto, commande, entreprise, shopOwner);
+        paiement.setNumero(genererNumero(entreprise.getId(), shopOwnerId));
         paiement.setStatut(StatutPaiement.VALIDE);
         paiement.setDatePaiement(LocalDateTime.now());
 
         Paiement saved = paiementRepository.save(paiement);
-        log.info("Paiement {} créé par {}", saved.getNumero(), userEmail);
+        log.info("Paiement {} créé par {} pour la commande {}",
+                saved.getNumero(), userEmail, commande.getNumero());
 
         mettreAJourStatutCommandeSiPayee(commande);
         return paiementMapper.toResponseDTO(saved);
@@ -150,8 +174,10 @@ public class PaiementService {
 
     @Transactional
     public PaiementResponseDTO changerStatut(Long id, StatutPaiement nouveauStatut) {
-        Paiement paiement = paiementRepository.findByIdWithCommande(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Paiement", id));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Paiement paiement = findMyPaiement(user, entreprise, id);
 
         StatutPaiement actuel = paiement.getStatut();
         String transition = actuel.name() + "->" + nouveauStatut.name();
@@ -164,9 +190,7 @@ public class PaiementService {
         paiement.setStatut(nouveauStatut);
         Paiement updated = paiementRepository.save(paiement);
 
-        // Mettre à jour le statut de la commande
         mettreAJourStatutCommandeSiPayee(updated.getCommande());
-
         return paiementMapper.toResponseDTO(updated);
     }
 
@@ -176,8 +200,10 @@ public class PaiementService {
 
     @Transactional
     public void delete(Long id) {
-        Paiement paiement = paiementRepository.findByIdWithCommande(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Paiement", id));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Paiement paiement = findMyPaiement(user, entreprise, id);
 
         if (paiement.getStatut() == StatutPaiement.VALIDE) {
             throw new BusinessException(
@@ -186,8 +212,6 @@ public class PaiementService {
 
         Commande commande = paiement.getCommande();
         paiementRepository.delete(paiement);
-
-        // Vérifier si le statut de la commande doit être modifié
         mettreAJourStatutCommandeSiPayee(commande);
     }
 
@@ -195,9 +219,10 @@ public class PaiementService {
     // MÉTHODES PRIVÉES
     // -----------------------------------------
 
-    private String genererNumero() {
+    private String genererNumero(Long entrepriseId, Long userId) {
         int annee = Year.now().getValue();
-        long count = paiementRepository.countByAnnee(annee);
+        long count = paiementRepository.countByAnneeAndEntrepriseIdAndUserId(
+                annee, entrepriseId, userId);
         return String.format("PAY-%d-%04d", annee, count + 1);
     }
 
@@ -221,12 +246,7 @@ public class PaiementService {
                 .build();
     }
 
-    /**
-     * Si la commande est totalement payée, on la passe en VALIDEE.
-     * Si elle ne l'est plus, on la repasse en EN_ATTENTE.
-     */
     private void mettreAJourStatutCommandeSiPayee(Commande commande) {
-        // On ne touche qu'aux commandes en EN_ATTENTE ou VALIDEE
         if (commande.getStatut() != StatutCommande.EN_ATTENTE
                 && commande.getStatut() != StatutCommande.VALIDEE) {
             return;
@@ -237,31 +257,61 @@ public class PaiementService {
         if (solde.isSolde() && commande.getStatut() == StatutCommande.EN_ATTENTE) {
             commande.setStatut(StatutCommande.VALIDEE);
             commandeRepository.save(commande);
-            log.info("Commande {} entièrement payée → statut VALIDEE", commande.getNumero());
-        } else if (!solde.isSolde() && commande.getStatut() == StatutCommande.VALIDEE) {
-            // Cas rare : remboursement partiel → repasser en EN_ATTENTE
-            // (on ne le fait pas car la commande peut déjà être traitée)
-            // À voir selon le métier
+            log.info("Commande {} entièrement payée → VALIDEE", commande.getNumero());
         }
     }
 
-    private Long getCurrentDataOwnerId() {
-        String email = SecurityUtils.getCurrentUserEmail();
-        if (email == null) {
-            throw new BusinessException("Utilisateur non authentifié");
+    private Paiement findMyPaiement(User user, Entreprise entreprise, Long id) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return paiementRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Paiement", id));
         }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return paiementRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        id, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Paiement", id));
+    }
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + email));
+    private Commande findMyCommande(User user, Entreprise entreprise, Long commandeId) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return commandeRepository
+                    .findByIdAndEntrepriseIdWithDetails(commandeId, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+        }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return commandeRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        commandeId, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+    }
 
-        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
             if (user.getPatron() == null) {
                 throw new BusinessException("Ce SELLER n'a pas de patron assigné");
             }
             return user.getPatron().getId();
         }
-
         return user.getId();
+    }
+
+    private Entreprise getCurrentEntreprise(User user) {
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+        return user.getEntreprise();
+    }
+
+    private User getCurrentUser() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
     }
 }

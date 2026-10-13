@@ -25,6 +25,10 @@ public class ProduitResponseDTO {
 
     private Integer stock;
 
+    // Entreprise propriétaire
+    private Long entrepriseId;
+    private String entrepriseNom;
+
     // Catégorie
     private Long categorieId;
     private String categorieNom;
@@ -32,7 +36,7 @@ public class ProduitResponseDTO {
     private String categorieChemin;
     private Integer categorieNiveau;
 
-    // Propriétaire
+    // User créateur (traçabilité)
     private Long userId;
     private String userEmail;
     private String userNom;

@@ -11,21 +11,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Catégorie hiérarchique d'un produit.
+ * Catégorie hiérarchique d'un produit, scopée par entreprise ET par boutique (user).
  * <p>
  * Structure d'arbre : une catégorie peut avoir un parent et plusieurs enfants.
- * Exemple : Accessoire > Téléphone > Google Pixel > 10 Pro > 128G
+ * <p>
+ * Un même slug peut exister dans plusieurs boutiques de la même entreprise.
  */
 @Entity
 @Table(
         name = "categories",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_categorie_slug", columnNames = "slug")
+                @UniqueConstraint(
+                        name = "uk_categorie_slug_entreprise_user",
+                        columnNames = {"slug", "entreprise_id", "user_id"}
+                )
         },
         indexes = {
                 @Index(name = "idx_categorie_parent", columnList = "parent_id"),
                 @Index(name = "idx_categorie_niveau", columnList = "niveau"),
-                @Index(name = "idx_categorie_nom", columnList = "nom")
+                @Index(name = "idx_categorie_nom", columnList = "nom"),
+                @Index(name = "idx_categorie_entreprise", columnList = "entreprise_id"),
+                @Index(name = "idx_categorie_user", columnList = "user_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -34,31 +40,50 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"parent", "enfants"})
+@ToString(exclude = {"parent", "enfants", "entreprise", "user"})
 public class Categorie {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Nom d'affichage (ex: "Google Pixel").
-     */
     @Column(name = "nom", nullable = false, length = 150)
     private String nom;
 
-    /**
-     * Slug unique (ex: "google-pixel"). Utilisé pour les URLs.
-     */
     @Column(name = "slug", nullable = false, length = 150)
     private String slug;
 
     @Column(name = "description", length = 500)
     private String description;
 
-    /**
-     * Catégorie parente (null si catégorie racine).
-     */
+    // -----------------------------------------
+    // Entreprise propriétaire (obligatoire)
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "entreprise_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_categorie_entreprise")
+    )
+    private Entreprise entreprise;
+
+    // -----------------------------------------
+    // User propriétaire de la boutique (obligatoire)
+    // -----------------------------------------
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(
+            name = "user_id",
+            nullable = false,
+            foreignKey = @ForeignKey(name = "fk_categorie_user")
+    )
+    private User user;
+
+    // -----------------------------------------
+    // Hiérarchie
+    // -----------------------------------------
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "parent_id",
@@ -66,9 +91,6 @@ public class Categorie {
     )
     private Categorie parent;
 
-    /**
-     * Sous-catégories directes.
-     */
     @OneToMany(
             mappedBy = "parent",
             cascade = CascadeType.ALL,
@@ -78,18 +100,10 @@ public class Categorie {
     @Builder.Default
     private List<Categorie> enfants = new ArrayList<>();
 
-    /**
-     * Niveau dans la hiérarchie (1 = racine, 2 = enfant, ...).
-     * Calculé automatiquement au moment de la création.
-     */
     @Column(name = "niveau", nullable = false)
     @Builder.Default
     private Integer niveau = 1;
 
-    /**
-     * Chemin complet dénormalisé (ex: "Accessoire > Téléphone > Google Pixel").
-     * Utile pour l'affichage rapide et les recherches.
-     */
     @Column(name = "chemin_complet", length = 1000)
     private String cheminComplet;
 

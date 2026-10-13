@@ -23,7 +23,11 @@ public class FournisseurResponseDTO {
     private String contactNom;
     private boolean actif;
 
-    // Propriétaire
+    // Entreprise propriétaire
+    private Long entrepriseId;
+    private String entrepriseNom;
+
+    // User créateur (traçabilité)
     private Long userId;
     private String userEmail;
     private String userNom;

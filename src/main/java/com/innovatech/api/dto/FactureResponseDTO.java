@@ -17,40 +17,41 @@ public class FactureResponseDTO {
     private Long id;
     private String numero;
 
-    // Lien
     private Long commandeId;
     private String commandeNumero;
 
-    // Client (actuel)
     private Long clientId;
-
-    // Snapshot client (figé)
     private String clientNom;
     private String clientAdresse;
     private String clientSiret;
     private String clientEmail;
     private String clientTelephone;
 
-    // Montants
     private BigDecimal totalHT;
     private BigDecimal tvaPercent;
     private BigDecimal totalTTC;
 
-    // Dates
     private LocalDate dateEmission;
     private LocalDate dateEcheance;
     private LocalDate datePaiement;
 
-    // Statut
     private StatutFacture statut;
     private String statutLibelle;
     private boolean enRetard;
     private long joursDeRetard;
 
-    // PDF
     private String pdfUrl;
-
     private String notes;
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
+
+    // Entreprise
+    private Long entrepriseId;
+    private String entrepriseNom;
+
+    // User (boutique)
+    private Long userId;
+    private String userEmail;
+    private String userNom;
+    private String userPrenom;
 }

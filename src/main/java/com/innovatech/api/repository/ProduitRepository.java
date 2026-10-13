@@ -12,89 +12,184 @@ import java.util.Optional;
 @Repository
 public interface ProduitRepository extends JpaRepository<Produit, Long> {
 
-    Optional<Produit> findByReference(String reference);
+    // -----------------------------------------
+    // Scoped par entreprise
+    // -----------------------------------------
 
-    boolean existsByReference(String reference);
+    List<Produit> findByEntrepriseId(Long entrepriseId);
 
-    List<Produit> findByActifTrue();
+    List<Produit> findByEntrepriseIdAndActifTrue(Long entrepriseId);
 
-    List<Produit> findByNomContainingIgnoreCase(String nom);
+    List<Produit> findByEntrepriseIdAndCategorieId(Long entrepriseId, Long categorieId);
 
-    List<Produit> findByStockLessThan(Integer seuil);
+    Optional<Produit> findByReferenceAndEntrepriseId(String reference, Long entrepriseId);
 
-    /**
-     * Produits par catégorie (directement attachés).
-     */
-    List<Produit> findByCategorieId(Long categorieId);
+    boolean existsByReferenceAndEntrepriseId(String reference, Long entrepriseId);
 
-    /**
-     * Charge un produit avec sa catégorie (évite N+1).
-     */
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie WHERE p.id = :id")
-    Optional<Produit> findByIdWithCategorie(@Param("id") Long id);
+    long countByEntrepriseId(Long entrepriseId);
 
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie ORDER BY p.id")
-    List<Produit> findAllWithCategorie();
+    long countByEntrepriseIdAndActifTrue(Long entrepriseId);
 
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie WHERE p.actif = true")
-    List<Produit> findByActifTrueWithCategorie();
+    // -----------------------------------------
+    // Scoped par entreprise + user (boutique)
+    // -----------------------------------------
 
-    /**
-     * Produits d'une catégorie ET de ses descendants (requête récursive MySQL 8+).
-     */
-    @Query(value = """
-        WITH RECURSIVE tree AS (
-            SELECT id FROM categories WHERE id = :categorieId
-            UNION ALL
-            SELECT c.id FROM categories c
-            JOIN tree t ON c.parent_id = t.id
-        )
-        SELECT p.* FROM produits p
-        WHERE p.categorie_id IN (SELECT id FROM tree)
-        """, nativeQuery = true)
-    List<Produit> findByCategorieAndDescendants(@Param("categorieId") Long categorieId);
+    List<Produit> findByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
+
+    List<Produit> findByEntrepriseIdAndUserIdAndActifTrue(Long entrepriseId, Long userId);
+
+    Optional<Produit> findByReferenceAndEntrepriseIdAndUserId(
+            String reference, Long entrepriseId, Long userId);
+
+    boolean existsByReferenceAndEntrepriseIdAndUserId(
+            String reference, Long entrepriseId, Long userId);
+
+    long countByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
+
+    long countByEntrepriseIdAndUserIdAndActifTrue(Long entrepriseId, Long userId);
+
+    // -----------------------------------------
+    // Recherche — niveau ENTREPRISE (ADMIN)
+    // -----------------------------------------
+
+    @Query("SELECT p FROM Produit p " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND LOWER(p.nom) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Produit> searchByEntrepriseId(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("query") String query);
+
+    @Query("SELECT p FROM Produit p " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.stock < :seuil")
+    List<Produit> findByEntrepriseIdAndStockLessThan(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("seuil") Integer seuil);
+
+    // -----------------------------------------
+    // Recherche — niveau BOUTIQUE (USER/SELLER)
+    // -----------------------------------------
+
+    @Query("SELECT p FROM Produit p " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId " +
+            "AND LOWER(p.nom) LIKE LOWER(CONCAT('%', :query, '%'))")
+    List<Produit> searchByEntrepriseIdAndUserId(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId,
+            @Param("query") String query);
+
+    @Query("SELECT p FROM Produit p " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId " +
+            "AND p.stock < :seuil")
+    List<Produit> findByEntrepriseIdAndUserIdAndStockLessThan(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId,
+            @Param("seuil") Integer seuil);
+
+    // -----------------------------------------
+    // Avec JOIN FETCH
+    // -----------------------------------------
 
     @Query("SELECT DISTINCT p FROM Produit p " +
             "LEFT JOIN FETCH p.categorie " +
             "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
             "LEFT JOIN FETCH p.photos " +
             "WHERE p.id = :id")
     Optional<Produit> findByIdWithDetails(@Param("id") Long id);
 
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user ORDER BY p.id")
-    List<Produit> findAllWithDetails();
-
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user WHERE p.actif = true")
-    List<Produit> findByActifTrueWithDetails();
-
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user WHERE p.user.id = :userId")
-    List<Produit> findByUserIdWithDetails(@Param("userId") Long userId);
-
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user " +
-            "WHERE p.user.id = :userId AND p.actif = true")
-    List<Produit> findByUserIdAndActifTrueWithDetails(@Param("userId") Long userId);
-
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user " +
-            "WHERE p.id = :id AND p.user.id = :userId")
-    Optional<Produit> findByIdAndUserIdWithDetails(@Param("id") Long id, @Param("userId") Long userId);
-
-    @Query("SELECT p FROM Produit p LEFT JOIN FETCH p.categorie LEFT JOIN FETCH p.user " +
-            "WHERE p.user.id = :userId AND LOWER(p.nom) LIKE LOWER(CONCAT('%', :query, '%'))")
-    List<Produit> searchByUserId(@Param("userId") Long userId, @Param("query") String query);
-
-    @Query("SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END " +
-            "FROM Produit p WHERE p.reference = :reference AND p.user.id = :userId")
-    boolean existsByReferenceAndUserId(@Param("reference") String reference,
-                                       @Param("userId") Long userId);
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
+            "LEFT JOIN FETCH p.photos " +
+            "WHERE p.id = :id AND p.entreprise.id = :entrepriseId")
+    Optional<Produit> findByIdAndEntrepriseIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId);
 
     @Query("SELECT DISTINCT p FROM Produit p " +
             "LEFT JOIN FETCH p.categorie " +
             "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
             "LEFT JOIN FETCH p.photos " +
-            "WHERE p.id = :id")
-    Optional<Produit> findByIdWithDetailsAndPhotos(@Param("id") Long id);
+            "WHERE p.id = :id AND p.user.id = :userId")
+    Optional<Produit> findByIdAndUserIdWithDetails(
+            @Param("id") Long id,
+            @Param("userId") Long userId);
 
-    long countByUserId(Long userId);
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
+            "LEFT JOIN FETCH p.photos " +
+            "WHERE p.id = :id " +
+            "AND p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId")
+    Optional<Produit> findByIdAndEntrepriseIdAndUserIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
 
-    long countByUserIdAndActifTrue(Long userId);
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "ORDER BY p.id")
+    List<Produit> findByEntrepriseIdWithDetails(@Param("entrepriseId") Long entrepriseId);
+
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
+            "WHERE p.entreprise.id = :entrepriseId AND p.actif = true")
+    List<Produit> findByEntrepriseIdAndActifTrueWithDetails(
+            @Param("entrepriseId") Long entrepriseId);
+
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId " +
+            "ORDER BY p.id")
+    List<Produit> findByEntrepriseIdAndUserIdWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT p FROM Produit p " +
+            "LEFT JOIN FETCH p.categorie " +
+            "LEFT JOIN FETCH p.user " +
+            "LEFT JOIN FETCH p.entreprise " +
+            "WHERE p.entreprise.id = :entrepriseId " +
+            "AND p.user.id = :userId " +
+            "AND p.actif = true " +
+            "ORDER BY p.id")
+    List<Produit> findByEntrepriseIdAndUserIdAndActifTrueWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    // -----------------------------------------
+    // Recherche par catégorie (récursive - MySQL 8+)
+    // -----------------------------------------
+
+    @Query(value = """
+        WITH RECURSIVE tree AS (
+            SELECT id FROM categories WHERE id = :categorieId AND entreprise_id = :entrepriseId
+            UNION ALL
+            SELECT c.id FROM categories c
+            JOIN tree t ON c.parent_id = t.id
+            WHERE c.entreprise_id = :entrepriseId
+        )
+        SELECT p.* FROM produits p
+        WHERE p.categorie_id IN (SELECT id FROM tree)
+          AND p.entreprise_id = :entrepriseId
+        """, nativeQuery = true)
+    List<Produit> findByCategorieAndDescendants(
+            @Param("categorieId") Long categorieId,
+            @Param("entrepriseId") Long entrepriseId
+    );
 }

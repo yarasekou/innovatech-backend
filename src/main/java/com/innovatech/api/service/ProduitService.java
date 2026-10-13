@@ -3,6 +3,7 @@ package com.innovatech.api.service;
 import com.innovatech.api.dto.ProduitRequestDTO;
 import com.innovatech.api.dto.ProduitResponseDTO;
 import com.innovatech.api.entity.Categorie;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.Produit;
 import com.innovatech.api.entity.Role;
 import com.innovatech.api.entity.User;
@@ -20,6 +21,18 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+/**
+ * Service de gestion des produits.
+ * <p>
+ * Filtrage triple selon le rôle :
+ * <ul>
+ *   <li>ADMIN  → tous les produits de son entreprise</li>
+ *   <li>USER   → seulement SA boutique (user_id = lui)</li>
+ *   <li>SELLER → la boutique de son patron (user_id = patron)</li>
+ * </ul>
+ * <p>
+ * ⚠️ Un ADMIN ne crée PAS de produit. Ce sont les USERs / SELLERs.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -32,50 +45,64 @@ public class ProduitService {
     private final ProduitMapper produitMapper;
 
     // -----------------------------------------
-    // READ — avec filtrage par user
+    // READ
     // -----------------------------------------
 
     public List<ProduitResponseDTO> findAll() {
-        if (SecurityUtils.isAdmin()) {
-            return produitRepository.findAllWithDetails()
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        // ADMIN → tous les produits de l'entreprise
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return produitRepository.findByEntrepriseIdWithDetails(entreprise.getId())
                     .stream()
                     .map(produitMapper::toResponseDTO)
                     .toList();
         }
 
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return produitRepository.findByUserIdWithDetails(dataOwnerId)
+        // USER / SELLER → produits de la boutique
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return produitRepository.findByEntrepriseIdAndUserIdWithDetails(
+                        entreprise.getId(), shopOwnerId)
                 .stream()
                 .map(produitMapper::toResponseDTO)
                 .toList();
     }
 
     public List<ProduitResponseDTO> findAllActifs() {
-        if (SecurityUtils.isAdmin()) {
-            return produitRepository.findByActifTrueWithDetails()
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return produitRepository.findByEntrepriseIdAndActifTrueWithDetails(entreprise.getId())
                     .stream()
                     .map(produitMapper::toResponseDTO)
                     .toList();
         }
 
-        Long userId = getCurrentUserId();
-        return produitRepository.findByUserIdAndActifTrueWithDetails(userId)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return produitRepository.findByEntrepriseIdAndUserIdAndActifTrueWithDetails(
+                        entreprise.getId(), shopOwnerId)
                 .stream()
                 .map(produitMapper::toResponseDTO)
                 .toList();
     }
 
     public ProduitResponseDTO findById(Long id) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
         Produit produit;
 
-        if (SecurityUtils.isAdmin()) {
-            // Admin peut voir n'importe quel produit
-            produit = produitRepository.findByIdWithDetails(id)
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            produit = produitRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
         } else {
-            // Les autres ne voient que leurs produits
-            Long userId = getCurrentUserId();
-            produit = produitRepository.findByIdAndUserIdWithDetails(id, userId)
+            Long shopOwnerId = resolveShopOwnerId(user);
+            produit = produitRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
         }
 
@@ -83,68 +110,86 @@ public class ProduitService {
     }
 
     public ProduitResponseDTO findByReference(String reference) {
-        Produit produit = produitRepository.findByReference(reference)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Produit avec référence " + reference + " introuvable"));
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        // Vérifier les droits (admin OU propriétaire)
-        if (!SecurityUtils.isAdmin()) {
-            Long userId = getCurrentUserId();
-            if (produit.getUser() == null || !produit.getUser().getId().equals(userId)) {
-                throw new ResourceNotFoundException("Produit avec référence " + reference + " introuvable");
-            }
+        Produit produit;
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            produit = produitRepository
+                    .findByReferenceAndEntrepriseId(reference, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Produit avec référence " + reference + " introuvable"));
+        } else {
+            Long shopOwnerId = resolveShopOwnerId(user);
+            produit = produitRepository
+                    .findByReferenceAndEntrepriseIdAndUserId(
+                            reference, entreprise.getId(), shopOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Produit avec référence " + reference + " introuvable"));
         }
 
         return produitMapper.toResponseDTO(produit);
     }
 
     public List<ProduitResponseDTO> search(String query) {
-        if (SecurityUtils.isAdmin()) {
-            return produitRepository.findByNomContainingIgnoreCase(query)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return produitRepository.searchByEntrepriseId(entreprise.getId(), query)
                     .stream()
                     .map(produitMapper::toResponseDTO)
                     .toList();
         }
 
-        Long userId = getCurrentUserId();
-        return produitRepository.searchByUserId(userId, query)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return produitRepository.searchByEntrepriseIdAndUserId(
+                        entreprise.getId(), shopOwnerId, query)
                 .stream()
                 .map(produitMapper::toResponseDTO)
                 .toList();
     }
 
     public List<ProduitResponseDTO> findStockFaible(Integer seuil) {
-        // ⚠️ Le stock faible concerne les produits du user (ou tous pour admin)
-        if (SecurityUtils.isAdmin()) {
-            return produitRepository.findByStockLessThan(seuil)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return produitRepository.findByEntrepriseIdAndStockLessThan(
+                            entreprise.getId(), seuil)
                     .stream()
                     .map(produitMapper::toResponseDTO)
                     .toList();
         }
 
-        Long userId = getCurrentUserId();
-        // Filtre supplémentaire sur le user
-        return produitRepository.findByStockLessThan(seuil)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return produitRepository.findByEntrepriseIdAndUserIdAndStockLessThan(
+                        entreprise.getId(), shopOwnerId, seuil)
                 .stream()
-                .filter(p -> p.getUser() != null && p.getUser().getId().equals(userId))
                 .map(produitMapper::toResponseDTO)
                 .toList();
     }
 
     public List<ProduitResponseDTO> findByCategorie(Long categorieId, boolean includeDescendants) {
-        if (!categorieRepository.existsById(categorieId)) {
-            throw new ResourceNotFoundException("Categorie", categorieId);
-        }
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
+        // Vérifier que la catégorie appartient à l'entreprise
+        categorieRepository.findByIdAndEntrepriseIdWithParent(categorieId, entreprise.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Categorie", categorieId));
+
+        // Récupérer les produits de la catégorie
         List<Produit> produits = includeDescendants
-                ? produitRepository.findByCategorieAndDescendants(categorieId)
-                : produitRepository.findByCategorieId(categorieId);
+                ? produitRepository.findByCategorieAndDescendants(categorieId, entreprise.getId())
+                : produitRepository.findByEntrepriseIdAndCategorieId(entreprise.getId(), categorieId);
 
-        // Filtrage supplémentaire si non-admin
-        if (!SecurityUtils.isAdmin()) {
-            Long userId = getCurrentUserId();
+        // Filtrer selon le rôle
+        if (!user.hasRole(Role.ROLE_ADMIN)) {
+            Long shopOwnerId = resolveShopOwnerId(user);
             produits = produits.stream()
-                    .filter(p -> p.getUser() != null && p.getUser().getId().equals(userId))
+                    .filter(p -> p.getUser() != null
+                            && p.getUser().getId().equals(shopOwnerId))
                     .toList();
         }
 
@@ -154,59 +199,63 @@ public class ProduitService {
     }
 
     // -----------------------------------------
-    // CREATE — user injecté depuis le JWT
+    // CREATE — USER / SELLER uniquement
     // -----------------------------------------
 
     @Transactional
     public ProduitResponseDTO create(ProduitRequestDTO dto, String userEmail) {
-        if (produitRepository.existsByReference(dto.getReference())) {
-            // ⚠️ Attention : la contrainte est (reference, user_id)
-            // Donc on vérifie l'unicité PAR user
-            Long userId = getCurrentUserId();
-            boolean exists = produitRepository.existsByReferenceAndUserId(dto.getReference(), userId);
-            if (exists) {
-                throw new BusinessException(
-                        "Vous avez déjà un produit avec la référence " + dto.getReference());
-            }
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        // ⚠️ Un ADMIN ne crée pas de produits
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException(
+                    "Un ADMIN ne crée pas de produits. Créez un USER pour cela.");
         }
 
-        Categorie categorie = resolveCategorie(dto.getCategorieId());
-        User user = resolveUser(userEmail);
+        // Déterminer le propriétaire de la boutique
+        Long shopOwnerId = resolveShopOwnerId(user);
+        User shopOwner = userRepository.findById(shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
 
-        Produit produit = produitMapper.toEntity(dto, categorie, user);
+        // Vérifier unicité (par entreprise + user boutique)
+        if (produitRepository.existsByReferenceAndEntrepriseIdAndUserId(
+                dto.getReference(), entreprise.getId(), shopOwnerId)) {
+            throw new BusinessException(
+                    "Vous avez déjà un produit avec la référence " + dto.getReference());
+        }
+
+        Categorie categorie = resolveCategorie(dto.getCategorieId(), entreprise.getId());
+
+        Produit produit = produitMapper.toEntity(dto, entreprise, categorie, shopOwner);
         Produit saved = produitRepository.save(produit);
-        log.info("Produit {} créé par user {}", saved.getReference(), userEmail);
+        log.info("Produit {} créé par {} pour la boutique de {} (entreprise: {})",
+                saved.getReference(), userEmail, shopOwner.getEmail(), entreprise.getNom());
         return produitMapper.toResponseDTO(saved);
     }
 
     // -----------------------------------------
-    // UPDATE — avec contrôle d'accès
+    // UPDATE
     // -----------------------------------------
 
     @Transactional
     public ProduitResponseDTO update(Long id, ProduitRequestDTO dto) {
-        Produit existing;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            existing = produitRepository.findByIdWithDetails(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
-        } else {
-            Long userId = getCurrentUserId();
-            existing = produitRepository.findByIdAndUserIdWithDetails(id, userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
+        Produit existing = findMyProduct(user, entreprise, id);
+
+        // Vérifier unicité si la référence change
+        Long shopOwnerId = existing.getUser() != null ? existing.getUser().getId() : null;
+        if (shopOwnerId != null
+                && !existing.getReference().equals(dto.getReference())
+                && produitRepository.existsByReferenceAndEntrepriseIdAndUserId(
+                dto.getReference(), entreprise.getId(), shopOwnerId)) {
+            throw new BusinessException(
+                    "Vous avez déjà un produit avec la référence " + dto.getReference());
         }
 
-        // Vérifier l'unicité de la référence (par user)
-        if (!existing.getReference().equals(dto.getReference())) {
-            Long userId = existing.getUser() != null ? existing.getUser().getId() : null;
-            boolean exists = produitRepository.existsByReferenceAndUserId(dto.getReference(), userId);
-            if (exists) {
-                throw new BusinessException(
-                        "Vous avez déjà un produit avec la référence " + dto.getReference());
-            }
-        }
-
-        Categorie categorie = resolveCategorie(dto.getCategorieId());
+        Categorie categorie = resolveCategorie(dto.getCategorieId(), entreprise.getId());
 
         produitMapper.updateEntity(existing, dto, categorie);
         Produit updated = produitRepository.save(existing);
@@ -214,39 +263,25 @@ public class ProduitService {
     }
 
     // -----------------------------------------
-    // DELETE — avec contrôle d'accès
+    // DELETE / DEACTIVATE
     // -----------------------------------------
 
     @Transactional
     public void delete(Long id) {
-        Produit produit;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            produit = produitRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
-        } else {
-            Long userId = getCurrentUserId();
-            produit = produitRepository.findByIdAndUserIdWithDetails(id, userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
-        }
-
+        Produit produit = findMyProduct(user, entreprise, id);
         produitRepository.delete(produit);
         log.info("Produit {} supprimé", produit.getReference());
     }
 
     @Transactional
     public void deactivate(Long id) {
-        Produit produit;
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        if (SecurityUtils.isAdmin()) {
-            produit = produitRepository.findById(id)
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
-        } else {
-            Long userId = getCurrentUserId();
-            produit = produitRepository.findByIdAndUserIdWithDetails(id, userId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
-        }
-
+        Produit produit = findMyProduct(user, entreprise, id);
         produit.setActif(false);
         produitRepository.save(produit);
     }
@@ -255,62 +290,61 @@ public class ProduitService {
     // MÉTHODES PRIVÉES
     // -----------------------------------------
 
-    private Categorie resolveCategorie(Long categorieId) {
-        if (categorieId == null) {
-            return null;
+    /**
+     * Retourne l'ID du propriétaire de la boutique.
+     * <ul>
+     *   <li>SELLER → son patron (USER)</li>
+     *   <li>USER   → son propre ID</li>
+     * </ul>
+     */
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
+            if (user.getPatron() == null) {
+                throw new BusinessException("Ce SELLER n'a pas de patron assigné");
+            }
+            return user.getPatron().getId();
         }
-        return categorieRepository.findById(categorieId)
-                .orElseThrow(() -> new ResourceNotFoundException("Categorie", categorieId));
-    }
-
-    private User resolveUser(String userEmail) {
-        if (userEmail == null) {
-            return null;
-        }
-        return userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("User avec email " + userEmail));
+        return user.getId();
     }
 
     /**
-     * Récupère l'ID du user actuellement connecté.
+     * Récupère un produit en respectant le filtrage par rôle.
      */
-    private Long getCurrentUserId() {
+    private Produit findMyProduct(User user, Entreprise entreprise, Long id) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return produitRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
+        }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return produitRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        id, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Produit", id));
+    }
+
+    private Categorie resolveCategorie(Long categorieId, Long entrepriseId) {
+        if (categorieId == null) return null;
+        return categorieRepository
+                .findByIdAndEntrepriseIdWithParent(categorieId, entrepriseId)
+                .orElseThrow(() -> new ResourceNotFoundException("Categorie", categorieId));
+    }
+
+    private Entreprise getCurrentEntreprise(User user) {
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+        return user.getEntreprise();
+    }
+
+    private User getCurrentUser() {
         String email = SecurityUtils.getCurrentUserEmail();
         if (email == null) {
             throw new BusinessException("Utilisateur non authentifié");
         }
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User introuvable avec l'email : " + email))
-                .getId();
-    }
-
-    /**
-     * Récupère l'ID du user dont on doit filtrer les données.
-     * <p>
-     * - ADMIN  : null (pas de filtre, voit tout)
-     * - USER   : son propre ID
-     * - SELLER : l'ID de son patron (il voit les données du patron)
-     */
-    private Long getCurrentDataOwnerId() {
-        String email = SecurityUtils.getCurrentUserEmail();
-        if (email == null) {
-            throw new BusinessException("Utilisateur non authentifié");
-        }
-
-        User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User introuvable avec l'email : " + email));
-
-        // Si SELLER → retourner l'ID du patron
-        if (user.getRoles().contains(Role.ROLE_SELLER)) {
-            if (user.getPatron() == null) {
-                throw new BusinessException(
-                        "Ce SELLER n'a pas de patron assigné");
-            }
-            return user.getPatron().getId();
-        }
-
-        // Sinon (USER) → son propre ID
-        return user.getId();
     }
 }

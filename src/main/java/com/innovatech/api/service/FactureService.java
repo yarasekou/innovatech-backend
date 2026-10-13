@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.Year;
 import java.util.List;
 import java.util.Set;
@@ -47,38 +46,48 @@ public class FactureService {
     // -----------------------------------------
 
     public List<FactureResponseDTO> findAll() {
-        if (SecurityUtils.isAdmin()) {
-            return factureRepository.findAllWithDetails()
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return factureRepository.findByEntrepriseIdWithDetails(entreprise.getId())
                     .stream().map(factureMapper::toResponseDTO).toList();
         }
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return factureRepository.findByVendeurIdWithDetails(dataOwnerId)
+
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return factureRepository.findByEntrepriseIdAndUserIdWithDetails(
+                        entreprise.getId(), shopOwnerId)
                 .stream().map(factureMapper::toResponseDTO).toList();
     }
 
     public FactureResponseDTO findById(Long id) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
         Facture facture;
-        if (SecurityUtils.isAdmin()) {
-            facture = factureRepository.findByIdWithDetails(id)
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            facture = factureRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Facture", id));
         } else {
-            Long dataOwnerId = getCurrentDataOwnerId();
-            facture = factureRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
+            Long shopOwnerId = resolveShopOwnerId(user);
+            facture = factureRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            id, entreprise.getId(), shopOwnerId)
                     .orElseThrow(() -> new ResourceNotFoundException("Facture", id));
         }
-        return factureMapper.toResponseDTO(facture);
-    }
 
-    public FactureResponseDTO findByNumero(String numero) {
-        Facture facture = factureRepository.findByNumero(numero)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Facture avec numéro " + numero + " introuvable"));
-        // TODO: vérifier l'accès (comme pour findById)
         return factureMapper.toResponseDTO(facture);
     }
 
     public FactureResponseDTO findByCommande(Long commandeId) {
-        Facture facture = factureRepository.findByCommandeId(commandeId)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        Commande commande = findMyCommande(user, entreprise, commandeId);
+
+        Facture facture = factureRepository.findByCommandeId(commande.getId())
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Aucune facture pour la commande " + commandeId));
         return factureMapper.toResponseDTO(facture);
@@ -90,32 +99,36 @@ public class FactureService {
 
     @Transactional
     public FactureResponseDTO create(FactureRequestDTO dto) {
-        Long dataOwnerId = getCurrentDataOwnerId();
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
 
-        // 1. Charger la commande
-        Commande commande = commandeRepository.findByIdAndVendeurIdWithDetails(
-                        dto.getCommandeId(), dataOwnerId)
-                .orElseThrow(() -> new ResourceNotFoundException("Commande", dto.getCommandeId()));
-
-        // 2. Vérifier que la commande est LIVREE
-        if (commande.getStatut() != StatutCommande.LIVREE) {
-            throw new BusinessException(
-                    "Seule une commande LIVREE peut être facturée");
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException("Un ADMIN ne crée pas de factures");
         }
 
-        // 3. Vérifier qu'il n'y a pas déjà une facture
+        Commande commande = findMyCommande(user, entreprise, dto.getCommandeId());
+
+        if (commande.getStatut() != StatutCommande.LIVREE) {
+            throw new BusinessException("Seule une commande LIVREE peut être facturée");
+        }
+
         if (factureRepository.existsByCommandeId(dto.getCommandeId())) {
             throw new BusinessException(
                     "Une facture existe déjà pour la commande " + commande.getNumero());
         }
 
-        // 4. Créer la facture
+        Long shopOwnerId = resolveShopOwnerId(user);
+        User shopOwner = userRepository.findById(shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
+
         LocalDate emission = dto.getDateEmission() != null
                 ? dto.getDateEmission()
                 : LocalDate.now();
 
         Facture facture = factureMapper.toEntity(
-                commande, genererNumero(), emission, dto.getNotes());
+                commande, entreprise, shopOwner,
+                genererNumero(entreprise.getId(), shopOwnerId),
+                emission, dto.getNotes());
 
         Facture saved = factureRepository.save(facture);
         log.info("Facture {} créée pour la commande {}",
@@ -124,7 +137,7 @@ public class FactureService {
     }
 
     // -----------------------------------------
-    // ÉMISSION (génère le PDF)
+    // CYCLE DE VIE
     // -----------------------------------------
 
     @Transactional
@@ -132,23 +145,16 @@ public class FactureService {
         Facture facture = findFactureSecurise(id);
 
         if (facture.getStatut() != StatutFacture.BROUILLON) {
-            throw new BusinessException(
-                    "Seule une facture BROUILLON peut être émise");
+            throw new BusinessException("Seule une facture BROUILLON peut être émise");
         }
 
         facture.setStatut(StatutFacture.EMISE);
         facture.setPdfUrl("/api/factures/" + id + "/pdf");
 
-        // TODO: générer le PDF ici (ou dans un endpoint dédié)
-
         Facture updated = factureRepository.save(facture);
         log.info("Facture {} émise", facture.getNumero());
         return factureMapper.toResponseDTO(updated);
     }
-
-    // -----------------------------------------
-    // PAIEMENT
-    // -----------------------------------------
 
     @Transactional
     public FactureResponseDTO marquerPayee(Long id) {
@@ -161,8 +167,7 @@ public class FactureService {
             throw new BusinessException("Impossible de payer une facture annulée");
         }
         if (facture.getStatut() == StatutFacture.BROUILLON) {
-            throw new BusinessException(
-                    "Impossible de payer une facture non émise. Émettez-la d'abord.");
+            throw new BusinessException("Impossible de payer une facture non émise");
         }
 
         facture.setStatut(StatutFacture.PAYEE);
@@ -173,17 +178,12 @@ public class FactureService {
         return factureMapper.toResponseDTO(updated);
     }
 
-    // -----------------------------------------
-    // ANNULATION
-    // -----------------------------------------
-
     @Transactional
     public FactureResponseDTO annuler(Long id) {
         Facture facture = findFactureSecurise(id);
 
         if (facture.getStatut() == StatutFacture.PAYEE) {
-            throw new BusinessException(
-                    "Impossible d'annuler une facture payée");
+            throw new BusinessException("Impossible d'annuler une facture payée");
         }
         if (facture.getStatut() == StatutFacture.ANNULEE) {
             throw new BusinessException("Cette facture est déjà annulée");
@@ -196,7 +196,7 @@ public class FactureService {
     }
 
     // -----------------------------------------
-    // BATCH : mettre à jour les factures en retard
+    // BATCH
     // -----------------------------------------
 
     @Transactional
@@ -220,11 +220,10 @@ public class FactureService {
 
         if (facture.getStatut() != StatutFacture.BROUILLON) {
             throw new BusinessException(
-                    "Seule une facture BROUILLON peut être supprimée. Annulez-la à la place.");
+                    "Seule une facture BROUILLON peut être supprimée");
         }
 
         factureRepository.delete(facture);
-        log.info("Facture {} supprimée", facture.getNumero());
     }
 
     // -----------------------------------------
@@ -232,36 +231,66 @@ public class FactureService {
     // -----------------------------------------
 
     private Facture findFactureSecurise(Long id) {
-        if (SecurityUtils.isAdmin()) {
-            return factureRepository.findByIdWithDetails(id)
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return factureRepository
+                    .findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
                     .orElseThrow(() -> new ResourceNotFoundException("Facture", id));
         }
-        Long dataOwnerId = getCurrentDataOwnerId();
-        return factureRepository.findByIdAndVendeurIdWithDetails(id, dataOwnerId)
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return factureRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        id, entreprise.getId(), shopOwnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Facture", id));
     }
 
-    private String genererNumero() {
+    private Commande findMyCommande(User user, Entreprise entreprise, Long commandeId) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return commandeRepository
+                    .findByIdAndEntrepriseIdWithDetails(commandeId, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+        }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return commandeRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        commandeId, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
+    }
+
+    private String genererNumero(Long entrepriseId, Long userId) {
         int annee = Year.now().getValue();
-        long count = factureRepository.countByAnnee(annee);
+        long count = factureRepository.countByAnneeAndEntrepriseIdAndUserId(
+                annee, entrepriseId, userId);
         return String.format("FAC-%d-%04d", annee, count + 1);
     }
 
-    private Long getCurrentDataOwnerId() {
-        String email = SecurityUtils.getCurrentUserEmail();
-        if (email == null) {
-            throw new BusinessException("Utilisateur non authentifié");
-        }
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + email));
-
-        if (user.getRoles().contains(Role.ROLE_SELLER)) {
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
             if (user.getPatron() == null) {
                 throw new BusinessException("Ce SELLER n'a pas de patron assigné");
             }
             return user.getPatron().getId();
         }
         return user.getId();
+    }
+
+    private Entreprise getCurrentEntreprise(User user) {
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+        return user.getEntreprise();
+    }
+
+    private User getCurrentUser() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
     }
 }

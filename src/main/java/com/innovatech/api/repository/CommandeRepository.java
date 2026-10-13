@@ -1,8 +1,5 @@
 package com.innovatech.api.repository;
 
-import com.innovatech.api.dto.dashboard.ChiffreAffairesMoisDTO;
-import com.innovatech.api.dto.dashboard.TopClientDTO;
-import com.innovatech.api.dto.dashboard.TopProduitDTO;
 import com.innovatech.api.entity.Commande;
 import com.innovatech.api.entity.StatutCommande;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -17,141 +14,126 @@ import java.util.Optional;
 @Repository
 public interface CommandeRepository extends JpaRepository<Commande, Long> {
 
-    // Méthodes existantes
-    Optional<Commande> findByNumero(String numero);
+    // -----------------------------------------
+    // Numérotation par boutique
+    // -----------------------------------------
 
-    boolean existsByNumero(String numero);
+    @Query("SELECT COUNT(c) FROM Commande c " +
+            "WHERE YEAR(c.dateCommande) = :annee " +
+            "AND c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId")
+    long countByAnneeAndEntrepriseIdAndUserId(
+            @Param("annee") int annee,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
 
-    List<Commande> findByClientIdOrderByDateCommandeDesc(Long clientId);
-
-    List<Commande> findByStatut(StatutCommande statut);
-
-    long countByClientId(Long clientId);
-
-    @Query("SELECT COUNT(c) FROM Commande c WHERE YEAR(c.dateCommande) = :annee")
-    long countByAnnee(@Param("annee") int annee);
-
-    // ---------------------------------------------------
-    // NOUVELLES MÉTHODES avec JOIN FETCH (évite le N+1)
-    // ---------------------------------------------------
-
+    // -----------------------------------------
+    // Scoped par entreprise (ADMIN)
+    // -----------------------------------------
 
     @Query("SELECT DISTINCT c FROM Commande c " +
-            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.entreprise " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
-            "WHERE c.id = :id")
-    Optional<Commande> findByIdWithDetails(@Param("id") Long id);
-
-    @Query("SELECT DISTINCT c FROM Commande c " +
-            "JOIN FETCH c.client " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId " +
             "ORDER BY c.dateCommande DESC")
-    List<Commande> findAllWithDetails();
+    List<Commande> findByEntrepriseIdWithDetails(@Param("entrepriseId") Long entrepriseId);
 
     @Query("SELECT DISTINCT c FROM Commande c " +
-            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.entreprise " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
-            "WHERE c.numero = :numero")
-    Optional<Commande> findByNumeroWithDetails(@Param("numero") String numero);
+            "WHERE c.id = :id AND c.entreprise.id = :entrepriseId")
+    Optional<Commande> findByIdAndEntrepriseIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId);
+
+    // -----------------------------------------
+    // Scoped par entreprise + user (boutique)
+    // -----------------------------------------
 
     @Query("SELECT DISTINCT c FROM Commande c " +
-            "JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.entreprise " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId " +
+            "ORDER BY c.dateCommande DESC")
+    List<Commande> findByEntrepriseIdAndUserIdWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "LEFT JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.entreprise " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.id = :id " +
+            "AND c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId")
+    Optional<Commande> findByIdAndEntrepriseIdAndUserIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    // -----------------------------------------
+    // Recherche par statut
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "LEFT JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId AND c.statut = :statut")
+    List<Commande> findByEntrepriseIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("statut") StatutCommande statut);
+
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "LEFT JOIN FETCH c.client " +
+            "LEFT JOIN FETCH c.user " +
+            "LEFT JOIN FETCH c.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE c.entreprise.id = :entrepriseId " +
+            "AND c.user.id = :userId " +
+            "AND c.statut = :statut")
+    List<Commande> findByEntrepriseIdAndUserIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId,
+            @Param("statut") StatutCommande statut);
+
+    // -----------------------------------------
+    // Par client
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT c FROM Commande c " +
+            "LEFT JOIN FETCH c.client " +
             "LEFT JOIN FETCH c.lignes l " +
             "LEFT JOIN FETCH l.produit " +
             "WHERE c.client.id = :clientId " +
             "ORDER BY c.dateCommande DESC")
     List<Commande> findByClientIdWithDetails(@Param("clientId") Long clientId);
 
-    @Query("SELECT DISTINCT c FROM Commande c " +
-            "JOIN FETCH c.client " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.statut = :statut")
-    List<Commande> findByStatutWithDetails(@Param("statut") StatutCommande statut);
+    long countByClientId(Long clientId);
 
-    @Query("SELECT c FROM Commande c " +
-            "JOIN FETCH c.client " +
-            "LEFT JOIN FETCH c.vendeur " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.vendeur.id = :vendeurId " +
-            "ORDER BY c.dateCommande DESC")
-    List<Commande> findByVendeurIdWithDetails(@Param("vendeurId") Long vendeurId);
+    // -----------------------------------------
+    // Compteurs
+    // -----------------------------------------
 
-    @Query("SELECT c FROM Commande c " +
-            "JOIN FETCH c.client " +
-            "LEFT JOIN FETCH c.vendeur " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.id = :id AND c.vendeur.id = :vendeurId")
-    Optional<Commande> findByIdAndVendeurIdWithDetails(@Param("id") Long id,
-                                                       @Param("vendeurId") Long vendeurId);
+    long countByEntrepriseId(Long entrepriseId);
 
-    @Query("SELECT c FROM Commande c " +
-            "JOIN FETCH c.client " +
-            "LEFT JOIN FETCH c.vendeur " +
-            "LEFT JOIN FETCH c.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE c.statut = :statut AND c.vendeur.id = :vendeurId")
-    List<Commande> findByStatutAndVendeurIdWithDetails(@Param("statut") StatutCommande statut,
-                                                       @Param("vendeurId") Long vendeurId);
+    long countByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
 
-    // Chiffre d'affaires total (hors annulées)
-    @Query("SELECT COALESCE(SUM(c.totalHT), 0) FROM Commande c " +
-            "WHERE c.statut <> 'ANNULEE'")
-    BigDecimal sumTotalHT();
+    long countByEntrepriseIdAndStatut(Long entrepriseId, StatutCommande statut);
 
-    @Query("SELECT COALESCE(SUM(c.totalTTC), 0) FROM Commande c " +
-            "WHERE c.statut <> 'ANNULEE'")
-    BigDecimal sumTotalTTC();
-
-    // Nombre de commandes par statut
-    long countByStatut(StatutCommande statut);
-
-    // Nombre total (hors annulées)
-    @Query("SELECT COUNT(c) FROM Commande c WHERE c.statut <> 'ANNULEE'")
-    long countNonAnnulees();
-
-    // Top produits (par quantité vendue)
-    @Query("SELECT new com.innovatech.api.dto.dashboard.TopProduitDTO(" +
-            "  p.id, p.reference, p.nom, " +
-            "  SUM(lc.quantite), " +
-            "  SUM(lc.sousTotal)" +
-            ") " +
-            "FROM LigneCommande lc " +
-            "JOIN lc.produit p " +
-            "JOIN lc.commande c " +
-            "WHERE c.statut <> 'ANNULEE' " +
-            "GROUP BY p.id, p.reference, p.nom " +
-            "ORDER BY SUM(lc.quantite) DESC")
-    List<TopProduitDTO> findTopProduits();
-
-    // Top clients (par CA)
-    @Query("SELECT new com.innovatech.api.dto.dashboard.TopClientDTO(" +
-            "  cl.id, cl.nom, cl.prenom, cl.email, " +
-            "  COUNT(c), " +
-            "  SUM(c.totalTTC)" +
-            ") " +
-            "FROM Commande c " +
-            "JOIN c.client cl " +
-            "WHERE c.statut <> 'ANNULEE' " +
-            "GROUP BY cl.id, cl.nom, cl.prenom, cl.email " +
-            "ORDER BY SUM(c.totalTTC) DESC")
-    List<TopClientDTO> findTopClients();
-
-    // Chiffre d'affaires par mois
-    @Query("SELECT new com.innovatech.api.dto.dashboard.ChiffreAffairesMoisDTO(" +
-            "  YEAR(c.dateCommande), MONTH(c.dateCommande), " +
-            "  '', " +
-            "  COALESCE(SUM(c.totalHT), 0), " +
-            "  COUNT(c)" +
-            ") " +
-            "FROM Commande c " +
-            "WHERE c.statut <> 'ANNULEE' " +
-            "GROUP BY YEAR(c.dateCommande), MONTH(c.dateCommande) " +
-            "ORDER BY YEAR(c.dateCommande) DESC, MONTH(c.dateCommande) DESC")
-    List<ChiffreAffairesMoisDTO> findChiffreAffairesParMois();
+    long countByEntrepriseIdAndUserIdAndStatut(
+            Long entrepriseId, Long userId, StatutCommande statut);
 }

@@ -17,8 +17,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/factures")
 @RequiredArgsConstructor
-@PreAuthorize("isAuthenticated()")
-@Tag(name = "Factures", description = "Factures clients et cycle de vie")
+@Tag(name = "Factures", description = "Factures scopées par boutique")
 public class FactureController {
 
     private final FactureService factureService;
@@ -28,35 +27,30 @@ public class FactureController {
     // -----------------------------------------
 
     @GetMapping
-    @Operation(summary = "Liste toutes les factures accessibles")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<FactureResponseDTO>> getAll() {
         return ResponseEntity.ok(factureService.findAll());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Détail d'une facture")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<FactureResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(factureService.findById(id));
     }
 
-    @GetMapping("/numero/{numero}")
-    @Operation(summary = "Détail d'une facture par numéro")
-    public ResponseEntity<FactureResponseDTO> getByNumero(@PathVariable String numero) {
-        return ResponseEntity.ok(factureService.findByNumero(numero));
-    }
-
     @GetMapping("/commande/{commandeId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
     @Operation(summary = "Facture liée à une commande")
     public ResponseEntity<FactureResponseDTO> getByCommande(@PathVariable Long commandeId) {
         return ResponseEntity.ok(factureService.findByCommande(commandeId));
     }
 
     // -----------------------------------------
-    // CREATE — USER uniquement
+    // CREATE — USER / SELLER uniquement
     // -----------------------------------------
 
     @PostMapping
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     @Operation(summary = "Créer une facture BROUILLON pour une commande LIVREE")
     public ResponseEntity<FactureResponseDTO> create(@Valid @RequestBody FactureRequestDTO dto) {
         FactureResponseDTO created = factureService.create(dto);
@@ -64,49 +58,44 @@ public class FactureController {
     }
 
     // -----------------------------------------
-    // CYCLE DE VIE — USER uniquement
+    // CYCLE DE VIE — USER / SELLER
     // -----------------------------------------
 
     @PatchMapping("/{id}/emettre")
-    @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Émettre une facture (BROUILLON → EMISE)")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<FactureResponseDTO> emettre(@PathVariable Long id) {
         return ResponseEntity.ok(factureService.emettre(id));
     }
 
     @PatchMapping("/{id}/payer")
-    @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Marquer une facture comme payée")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<FactureResponseDTO> payer(@PathVariable Long id) {
         return ResponseEntity.ok(factureService.marquerPayee(id));
     }
 
     @PatchMapping("/{id}/annuler")
-    @PreAuthorize("hasRole('USER')")
-    @Operation(summary = "Annuler une facture (non payée)")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<FactureResponseDTO> annuler(@PathVariable Long id) {
         return ResponseEntity.ok(factureService.annuler(id));
     }
 
     // -----------------------------------------
-    // BATCH — ADMIN uniquement
+    // BATCH — ADMIN
     // -----------------------------------------
 
     @PostMapping("/mettre-a-jour-retards")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Batch : passer en EN_RETARD les factures échues (ADMIN)")
+    @Operation(summary = "Batch : passer en EN_RETARD les factures échues")
     public ResponseEntity<Integer> mettreAJourRetards() {
-        int count = factureService.mettreAJourFacturesEnRetard();
-        return ResponseEntity.ok(count);
+        return ResponseEntity.ok(factureService.mettreAJourFacturesEnRetard());
     }
 
     // -----------------------------------------
-    // DELETE — ADMIN uniquement
+    // DELETE — USER / SELLER
     // -----------------------------------------
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Supprimer une facture BROUILLON (ADMIN)")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         factureService.delete(id);
         return ResponseEntity.noContent().build();

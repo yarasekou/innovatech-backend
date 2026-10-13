@@ -28,7 +28,13 @@ public class UserMapper {
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification());
 
-        // Patron
+        // Entreprise d'appartenance
+        if (entity.getEntreprise() != null) {
+            builder.entrepriseId(entity.getEntreprise().getId())
+                    .entrepriseNom(entity.getEntreprise().getNom());
+        }
+
+        // Patron (pour les SELLERs)
         if (entity.getPatron() != null) {
             builder.patronId(entity.getPatron().getId())
                     .patronEmail(entity.getPatron().getEmail())

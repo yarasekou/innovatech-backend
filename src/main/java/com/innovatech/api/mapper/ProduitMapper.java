@@ -4,6 +4,7 @@ import com.innovatech.api.dto.PhotoProduitDTO;
 import com.innovatech.api.dto.ProduitRequestDTO;
 import com.innovatech.api.dto.ProduitResponseDTO;
 import com.innovatech.api.entity.Categorie;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.PhotoProduit;
 import com.innovatech.api.entity.Produit;
 import com.innovatech.api.entity.User;
@@ -21,7 +22,14 @@ public class ProduitMapper {
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public Produit toEntity(ProduitRequestDTO dto, Categorie categorie, User user) {
+    // -----------------------------------------
+    // CREATE
+    // -----------------------------------------
+
+    public Produit toEntity(ProduitRequestDTO dto,
+                            Entreprise entreprise,
+                            Categorie categorie,
+                            User user) {
         if (dto == null) return null;
 
         return Produit.builder()
@@ -29,13 +37,20 @@ public class ProduitMapper {
                 .nom(dto.getNom())
                 .description(dto.getDescription())
                 .prix(dto.getPrix())
-                .prixAchat(dto.getPrixAchat() != null ? dto.getPrixAchat() : java.math.BigDecimal.ZERO)
+                .prixAchat(dto.getPrixAchat() != null
+                        ? dto.getPrixAchat()
+                        : java.math.BigDecimal.ZERO)
                 .stock(dto.getStock())
+                .entreprise(entreprise)
                 .categorie(categorie)
                 .user(user)
                 .actif(dto.getActif() != null ? dto.getActif() : true)
                 .build();
     }
+
+    // -----------------------------------------
+    // UPDATE
+    // -----------------------------------------
 
     public void updateEntity(Produit entity, ProduitRequestDTO dto, Categorie categorie) {
         entity.setReference(dto.getReference());
@@ -46,7 +61,13 @@ public class ProduitMapper {
         entity.setStock(dto.getStock());
         entity.setCategorie(categorie);
         entity.setActif(dto.getActif() != null ? dto.getActif() : entity.isActif());
+        // ⚠️ Entreprise ne change PAS
+        // ⚠️ User ne change PAS
     }
+
+    // -----------------------------------------
+    // RESPONSE
+    // -----------------------------------------
 
     public ProduitResponseDTO toResponseDTO(Produit entity) {
         if (entity == null) return null;
@@ -64,6 +85,12 @@ public class ProduitMapper {
                 .actif(entity.isActif())
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification());
+
+        // Entreprise
+        if (entity.getEntreprise() != null) {
+            builder.entrepriseId(entity.getEntreprise().getId())
+                    .entrepriseNom(entity.getEntreprise().getNom());
+        }
 
         // Catégorie
         if (entity.getCategorie() != null) {
@@ -104,9 +131,6 @@ public class ProduitMapper {
         return builder.build();
     }
 
-    /**
-     * Convertit une photo en DTO.
-     */
     private PhotoProduitDTO toPhotoDTO(PhotoProduit photo) {
         return PhotoProduitDTO.builder()
                 .id(photo.getId())

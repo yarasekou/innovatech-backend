@@ -13,70 +13,123 @@ import java.util.Optional;
 @Repository
 public interface RetourRepository extends JpaRepository<Retour, Long> {
 
-    Optional<Retour> findByNumero(String numero);
-
-    boolean existsByNumero(String numero);
-
-    @Query("SELECT COUNT(r) FROM Retour r WHERE YEAR(r.dateDemande) = :annee")
-    long countByAnnee(@Param("annee") int annee);
+    @Query("SELECT COUNT(r) FROM Retour r " +
+            "WHERE YEAR(r.dateDemande) = :annee " +
+            "AND r.entreprise.id = :entrepriseId " +
+            "AND r.user.id = :userId")
+    long countByAnneeAndEntrepriseIdAndUserId(
+            @Param("annee") int annee,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
 
     // -----------------------------------------
-    // Par user
+    // Par commande / client
     // -----------------------------------------
-    List<Retour> findByUserId(Long userId);
-    List<Retour> findByUserIdAndStatut(Long userId, StatutRetour statut);
+
     List<Retour> findByCommandeId(Long commandeId);
     List<Retour> findByClientId(Long clientId);
 
     // -----------------------------------------
-    // Avec JOIN FETCH
+    // Par entreprise (ADMIN)
     // -----------------------------------------
+
     @Query("SELECT DISTINCT r FROM Retour r " +
             "JOIN FETCH r.commande " +
             "JOIN FETCH r.client " +
-            "LEFT JOIN FETCH r.user " +
+            "JOIN FETCH r.user " +
+            "LEFT JOIN FETCH r.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE r.entreprise.id = :entrepriseId " +
+            "ORDER BY r.dateDemande DESC")
+    List<Retour> findByEntrepriseIdWithDetails(@Param("entrepriseId") Long entrepriseId);
+
+    @Query("SELECT DISTINCT r FROM Retour r " +
+            "JOIN FETCH r.commande " +
+            "JOIN FETCH r.client " +
+            "JOIN FETCH r.user " +
+            "LEFT JOIN FETCH r.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE r.id = :id AND r.entreprise.id = :entrepriseId")
+    Optional<Retour> findByIdAndEntrepriseIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId);
+
+    // -----------------------------------------
+    // Par entreprise + user (boutique)
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT r FROM Retour r " +
+            "JOIN FETCH r.commande " +
+            "JOIN FETCH r.client " +
+            "JOIN FETCH r.user " +
+            "LEFT JOIN FETCH r.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE r.entreprise.id = :entrepriseId " +
+            "AND r.user.id = :userId " +
+            "ORDER BY r.dateDemande DESC")
+    List<Retour> findByEntrepriseIdAndUserIdWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    @Query("SELECT DISTINCT r FROM Retour r " +
+            "JOIN FETCH r.commande " +
+            "JOIN FETCH r.client " +
+            "JOIN FETCH r.user " +
+            "LEFT JOIN FETCH r.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE r.id = :id " +
+            "AND r.entreprise.id = :entrepriseId " +
+            "AND r.user.id = :userId")
+    Optional<Retour> findByIdAndEntrepriseIdAndUserIdWithDetails(
+            @Param("id") Long id,
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId);
+
+    // -----------------------------------------
+    // Par statut
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT r FROM Retour r " +
+            "JOIN FETCH r.commande " +
+            "JOIN FETCH r.client " +
+            "JOIN FETCH r.user " +
+            "LEFT JOIN FETCH r.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE r.entreprise.id = :entrepriseId " +
+            "AND r.statut = :statut " +
+            "ORDER BY r.dateDemande DESC")
+    List<Retour> findByEntrepriseIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("statut") StatutRetour statut);
+
+    @Query("SELECT DISTINCT r FROM Retour r " +
+            "JOIN FETCH r.commande " +
+            "JOIN FETCH r.client " +
+            "JOIN FETCH r.user " +
+            "LEFT JOIN FETCH r.lignes l " +
+            "LEFT JOIN FETCH l.produit " +
+            "WHERE r.entreprise.id = :entrepriseId " +
+            "AND r.user.id = :userId " +
+            "AND r.statut = :statut " +
+            "ORDER BY r.dateDemande DESC")
+    List<Retour> findByEntrepriseIdAndUserIdAndStatutWithDetails(
+            @Param("entrepriseId") Long entrepriseId,
+            @Param("userId") Long userId,
+            @Param("statut") StatutRetour statut);
+
+    // -----------------------------------------
+    // Détails génériques
+    // -----------------------------------------
+
+    @Query("SELECT DISTINCT r FROM Retour r " +
+            "JOIN FETCH r.commande " +
+            "JOIN FETCH r.client " +
+            "JOIN FETCH r.user " +
             "LEFT JOIN FETCH r.lignes l " +
             "LEFT JOIN FETCH l.produit " +
             "WHERE r.id = :id")
     Optional<Retour> findByIdWithDetails(@Param("id") Long id);
 
-    @Query("SELECT DISTINCT r FROM Retour r " +
-            "JOIN FETCH r.commande " +
-            "JOIN FETCH r.client " +
-            "LEFT JOIN FETCH r.user " +
-            "LEFT JOIN FETCH r.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "ORDER BY r.dateDemande DESC")
-    List<Retour> findAllWithDetails();
-
-    @Query("SELECT DISTINCT r FROM Retour r " +
-            "JOIN FETCH r.commande " +
-            "JOIN FETCH r.client " +
-            "LEFT JOIN FETCH r.user " +
-            "LEFT JOIN FETCH r.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE r.user.id = :userId " +
-            "ORDER BY r.dateDemande DESC")
-    List<Retour> findByUserIdWithDetails(@Param("userId") Long userId);
-
-    @Query("SELECT DISTINCT r FROM Retour r " +
-            "JOIN FETCH r.commande " +
-            "JOIN FETCH r.client " +
-            "LEFT JOIN FETCH r.user " +
-            "LEFT JOIN FETCH r.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE r.id = :id AND r.user.id = :userId")
-    Optional<Retour> findByIdAndUserIdWithDetails(@Param("id") Long id,
-                                                  @Param("userId") Long userId);
-
-    @Query("SELECT DISTINCT r FROM Retour r " +
-            "JOIN FETCH r.commande " +
-            "JOIN FETCH r.client " +
-            "LEFT JOIN FETCH r.user " +
-            "LEFT JOIN FETCH r.lignes l " +
-            "LEFT JOIN FETCH l.produit " +
-            "WHERE r.user.id = :userId AND r.statut = :statut " +
-            "ORDER BY r.dateDemande DESC")
-    List<Retour> findByUserIdAndStatutWithDetails(@Param("userId") Long userId,
-                                                  @Param("statut") StatutRetour statut);
+    long countByEntrepriseId(Long entrepriseId);
+    long countByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
 }

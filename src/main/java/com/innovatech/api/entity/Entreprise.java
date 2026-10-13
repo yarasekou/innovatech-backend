@@ -6,24 +6,24 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 /**
- * Entreprise appartenant à un USER (relation 1-1).
+ * Entreprise (tenant).
  * <p>
- * C'est le conteneur principal des données métier :
- * catégories, produits, clients, fournisseurs, commandes, etc.
+ * Une entreprise appartient à UN ADMIN (owner) et contient :
+ * des USERs (managers), des catégories, produits, clients, etc.
  */
 @Entity
 @Table(
         name = "entreprises",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_entreprise_slug", columnNames = "slug"),
-                @UniqueConstraint(name = "uk_entreprise_user", columnNames = "user_id")
+                @UniqueConstraint(name = "uk_entreprise_slug", columnNames = "slug")
         },
         indexes = {
                 @Index(name = "idx_entreprise_nom", columnList = "nom"),
-                @Index(name = "idx_entreprise_user", columnList = "user_id")
+                @Index(name = "idx_entreprise_owner", columnList = "owner_id")
         }
 )
 @EntityListeners(AuditingEntityListener.class)
@@ -32,7 +32,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = "user")
+@ToString(exclude = "owner")
 public class Entreprise {
 
     @Id
@@ -73,11 +73,8 @@ public class Entreprise {
 
     @Column(name = "tva_percent", nullable = false, precision = 5, scale = 2)
     @Builder.Default
-    private java.math.BigDecimal tvaPercent = new java.math.BigDecimal("18.00");
+    private BigDecimal tvaPercent = new BigDecimal("18.00");
 
-    /**
-     * Nom du fichier du logo (dans /uploads/entreprises/).
-     */
     @Column(name = "logo", length = 255)
     private String logo;
 
@@ -86,16 +83,16 @@ public class Entreprise {
     private boolean actif = true;
 
     /**
-     * Propriétaire (USER). Relation 1-1 : un USER a une seule entreprise.
+     * ADMIN propriétaire de l'entreprise.
+     * Plusieurs entreprises peuvent avoir le même owner (cas rare mais possible).
      */
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(
-            name = "user_id",
+            name = "owner_id",
             nullable = false,
-            unique = true,
-            foreignKey = @ForeignKey(name = "fk_entreprise_user")
+            foreignKey = @ForeignKey(name = "fk_entreprise_owner")
     )
-    private User user;
+    private User owner;
 
     @CreatedDate
     @Column(name = "date_creation", nullable = false, updatable = false)

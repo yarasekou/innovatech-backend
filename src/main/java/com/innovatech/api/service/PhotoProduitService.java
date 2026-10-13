@@ -1,13 +1,18 @@
 package com.innovatech.api.service;
 
 import com.innovatech.api.dto.PhotoProduitDTO;
+import com.innovatech.api.entity.Entreprise;
 import com.innovatech.api.entity.PhotoProduit;
 import com.innovatech.api.entity.Produit;
+import com.innovatech.api.entity.Role;
+import com.innovatech.api.entity.User;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.PhotoProduitMapper;
-import com.innovatech.api.repository.PhotoProduitRepository;   // ← ⚠️ CET IMPORT
+import com.innovatech.api.repository.PhotoProduitRepository;
 import com.innovatech.api.repository.ProduitRepository;
+import com.innovatech.api.repository.UserRepository;
+import com.innovatech.api.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +29,7 @@ public class PhotoProduitService {
 
     private final PhotoProduitRepository photoRepository;
     private final ProduitRepository produitRepository;
+    private final UserRepository userRepository;
     private final PhotoProduitMapper photoMapper;
     private final FileStorageService fileStorageService;
 
@@ -35,10 +41,9 @@ public class PhotoProduitService {
     // -----------------------------------------
 
     public List<PhotoProduitDTO> findByProduit(Long produitId) {
-        if (!produitRepository.existsById(produitId)) {
-            throw new ResourceNotFoundException("Produit", produitId);
-        }
-        return photoRepository.findByProduitIdOrderByOrdreAsc(produitId)
+        Produit produit = findMyProduit(produitId);
+
+        return photoRepository.findByProduitIdOrderByOrdreAsc(produit.getId())
                 .stream()
                 .map(photoMapper::toDTO)
                 .toList();
@@ -50,32 +55,27 @@ public class PhotoProduitService {
 
     @Transactional
     public PhotoProduitDTO ajouter(Long produitId, MultipartFile file, String titre, boolean principale) {
-        Produit produit = produitRepository.findById(produitId)
-                .orElseThrow(() -> new ResourceNotFoundException("Produit", produitId));
+        // ⚠️ Vérifie que le produit appartient à la boutique de l'utilisateur
+        Produit produit = findMyProduit(produitId);
 
-        // Vérifier le nombre max
-        long nbPhotos = photoRepository.countByProduitId(produitId);
+        long nbPhotos = photoRepository.countByProduitId(produit.getId());
         if (nbPhotos >= MAX_PHOTOS) {
             throw new BusinessException(
                     "Maximum " + MAX_PHOTOS + " photos par produit atteint");
         }
 
-        // Stocker le fichier
         String nomFichier = fileStorageService.store(file, SOUS_DOSSIER);
 
-        // Si c'est la première photo, elle devient principale
         boolean estPrincipale = principale || nbPhotos == 0;
 
-        // Si principale → retirer le flag des autres
         if (estPrincipale) {
-            photoRepository.findByProduitIdAndPrincipaleTrue(produitId)
+            photoRepository.findByProduitIdAndPrincipaleTrue(produit.getId())
                     .ifPresent(p -> {
                         p.setPrincipale(false);
                         photoRepository.save(p);
                     });
         }
 
-        // Créer l'entité
         PhotoProduit photo = PhotoProduit.builder()
                 .produit(produit)
                 .nomFichier(nomFichier)
@@ -101,9 +101,11 @@ public class PhotoProduitService {
         PhotoProduit photo = photoRepository.findById(photoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Photo", photoId));
 
+        // ⚠️ Vérifie que le produit appartient à la boutique
+        findMyProduit(photo.getProduit().getId());
+
         Long produitId = photo.getProduit().getId();
 
-        // Retirer le flag de toutes les photos du produit
         photoRepository.findByProduitIdOrderByOrdreAsc(produitId)
                 .forEach(p -> {
                     if (p.isPrincipale()) {
@@ -112,7 +114,6 @@ public class PhotoProduitService {
                     }
                 });
 
-        // Marquer celle-ci comme principale
         photo.setPrincipale(true);
         PhotoProduit updated = photoRepository.save(photo);
         return photoMapper.toDTO(updated);
@@ -127,16 +128,15 @@ public class PhotoProduitService {
         PhotoProduit photo = photoRepository.findById(photoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Photo", photoId));
 
+        // ⚠️ Vérifie que le produit appartient à la boutique
+        findMyProduit(photo.getProduit().getId());
+
         Long produitId = photo.getProduit().getId();
         boolean etaitPrincipale = photo.isPrincipale();
 
-        // Supprimer le fichier physique
         fileStorageService.delete(photo.getNomFichier(), SOUS_DOSSIER);
-
-        // Supprimer l'entité
         photoRepository.delete(photo);
 
-        // Si c'était la principale et qu'il reste des photos → la 1ʳᵉ devient principale
         if (etaitPrincipale) {
             List<PhotoProduit> restantes = photoRepository.findByProduitIdOrderByOrdreAsc(produitId);
             if (!restantes.isEmpty()) {
@@ -147,5 +147,65 @@ public class PhotoProduitService {
         }
 
         log.info("Photo {} supprimée", photoId);
+    }
+
+    // -----------------------------------------
+    // MÉTHODES PRIVÉES
+    // -----------------------------------------
+
+    /**
+     * Récupère un produit en vérifiant qu'il appartient à la boutique
+     * de l'utilisateur connecté.
+     * <ul>
+     *   <li>ADMIN  → peut accéder à tous les produits de son entreprise</li>
+     *   <li>USER   → seulement ses produits</li>
+     *   <li>SELLER → seulement les produits de son patron</li>
+     * </ul>
+     */
+    private Produit findMyProduit(Long produitId) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            // ADMIN → peut voir tous les produits de son entreprise
+            return produitRepository
+                    .findByIdAndEntrepriseIdWithDetails(produitId, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Produit", produitId));
+        }
+
+        // USER / SELLER → seulement sa boutique
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return produitRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        produitId, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Produit", produitId));
+    }
+
+    private Long resolveShopOwnerId(User user) {
+        if (user.hasRole(Role.ROLE_SELLER)) {
+            if (user.getPatron() == null) {
+                throw new BusinessException("Ce SELLER n'a pas de patron assigné");
+            }
+            return user.getPatron().getId();
+        }
+        return user.getId();
+    }
+
+    private Entreprise getCurrentEntreprise(User user) {
+        if (user.getEntreprise() == null) {
+            throw new BusinessException(
+                    "Aucune entreprise associée. Contactez votre administrateur.");
+        }
+        return user.getEntreprise();
+    }
+
+    private User getCurrentUser() {
+        String email = SecurityUtils.getCurrentUserEmail();
+        if (email == null) {
+            throw new BusinessException("Utilisateur non authentifié");
+        }
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + email));
     }
 }

@@ -14,24 +14,19 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Endpoints d'administration (réservés ROLE_ADMIN).
+ * Endpoints d'administration plateforme — réservés ROLE_SUPER_ADMIN.
  */
 @RestController
 @RequestMapping("/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Administration", description = "Gestion des utilisateurs (ADMIN)")
+@PreAuthorize("hasRole('SUPER_ADMIN')")
+@Tag(name = "Administration", description = "Gestion plateforme (SUPER_ADMIN uniquement)")
 public class AdminController {
 
     private final AdminService adminService;
 
-    // -----------------------------------------
-    // CONSULTATION
-    // -----------------------------------------
-
     @GetMapping("/users")
-    @Operation(summary = "Liste tous les utilisateurs")
-
+    @Operation(summary = "Liste tous les utilisateurs de la plateforme")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         return ResponseEntity.ok(adminService.findAllUsers());
     }
@@ -42,32 +37,16 @@ public class AdminController {
         return ResponseEntity.ok(adminService.findUserById(id));
     }
 
-    // -----------------------------------------
-    // GESTION DES RÔLES
-    // -----------------------------------------
-
-    @PatchMapping("/users/{id}/promote")
-    @Operation(summary = "Promouvoir un user en ADMIN")
-    public ResponseEntity<UserResponseDTO> promote(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.promoteToAdmin(id));
+    @PatchMapping("/users/{id}/promote-super-admin")
+    @Operation(summary = "Promouvoir un user en SUPER_ADMIN")
+    public ResponseEntity<UserResponseDTO> promoteSuperAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(adminService.promoteToSuperAdmin(id));
     }
 
-    @PatchMapping("/users/{id}/demote")
-    @Operation(summary = "Rétrograder un ADMIN en USER")
-    public ResponseEntity<UserResponseDTO> demote(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.demoteToUser(id));
-    }
-
-    @PatchMapping("/users/{id}/promote-seller")
-    @Operation(summary = "Promouvoir un user en SELLER (rôle unique)")
-    public ResponseEntity<UserResponseDTO> promoteSeller(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.promoteToSeller(id));
-    }
-
-    @PatchMapping("/users/{id}/demote-seller")
-    @Operation(summary = "Rétrograder un SELLER en USER")
-    public ResponseEntity<UserResponseDTO> demoteSeller(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.demoteFromSeller(id));
+    @PatchMapping("/users/{id}/demote-super-admin")
+    @Operation(summary = "Rétrograder un SUPER_ADMIN")
+    public ResponseEntity<UserResponseDTO> demoteSuperAdmin(@PathVariable Long id) {
+        return ResponseEntity.ok(adminService.demoteFromSuperAdmin(id));
     }
 
     @PatchMapping("/users/{id}/toggle-actif")
@@ -75,10 +54,6 @@ public class AdminController {
     public ResponseEntity<UserResponseDTO> toggleActif(@PathVariable Long id) {
         return ResponseEntity.ok(adminService.toggleActif(id));
     }
-
-    // -----------------------------------------
-    // HIÉRARCHIE : SELLER → PATRON
-    // -----------------------------------------
 
     @PatchMapping("/users/{id}/assign-patron")
     @Operation(summary = "Rattacher un SELLER à un patron")
