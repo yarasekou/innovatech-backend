@@ -135,7 +135,7 @@ public class ProduitMapper {
         return PhotoProduitDTO.builder()
                 .id(photo.getId())
                 .produitId(photo.getProduit() != null ? photo.getProduit().getId() : null)
-                .url(contextPath + "/" + uploadDir + "/" + photo.getNomFichier())
+                .url(contextPath + "/" + uploadDir + "/produits/" + photo.getNomFichier())   // ✅ FIX
                 .nomFichier(photo.getNomFichier())
                 .titre(photo.getTitre())
                 .principale(photo.isPrincipale())

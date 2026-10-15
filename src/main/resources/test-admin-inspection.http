@@ -1,0 +1,107 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. LOGIN SUPER_ADMIN (Yara)
+### =========================================================
+
+### 1.1 — Login Yara
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("yaraToken", response.body.token);
+    client.log("✅ Token Yara");
+%}
+
+
+### =========================================================
+### 2. INSPECTION DE L'ADMIN ALI (id=2)
+### =========================================================
+
+### 2.1 — Profil d'Ali
+GET {{baseUrl}}/admin/users/2/profil
+Authorization: Bearer {{yaraToken}}
+
+### 2.2 — USERs d'Ali (Fatou, Bouba)
+GET {{baseUrl}}/admin/users/2/users
+Authorization: Bearer {{yaraToken}}
+
+### 2.3 — Catégories d'Ali
+GET {{baseUrl}}/admin/users/2/categories
+Authorization: Bearer {{yaraToken}}
+
+### 2.4 — Produits d'Ali
+GET {{baseUrl}}/admin/users/2/produits
+Authorization: Bearer {{yaraToken}}
+
+### 2.5 — Clients d'Ali
+GET {{baseUrl}}/admin/users/2/clients
+Authorization: Bearer {{yaraToken}}
+
+### 2.6 — Fournisseurs d'Ali
+GET {{baseUrl}}/admin/users/2/fournisseurs
+Authorization: Bearer {{yaraToken}}
+
+### 2.7 — Commandes d'Ali
+GET {{baseUrl}}/admin/users/2/commandes
+Authorization: Bearer {{yaraToken}}
+
+
+### =========================================================
+### 3. INSPECTION D'UN USER (Fatou, id=5)
+### =========================================================
+
+### 3.1 — Profil de Fatou
+GET {{baseUrl}}/admin/users/5/profil
+Authorization: Bearer {{yaraToken}}
+
+### 3.2 — Produits de Fatou (elle appartient à l'entreprise d'Ali)
+GET {{baseUrl}}/admin/users/5/produits
+Authorization: Bearer {{yaraToken}}
+
+### 3.3 — Commandes de Fatou
+GET {{baseUrl}}/admin/users/5/commandes
+Authorization: Bearer {{yaraToken}}
+
+
+### =========================================================
+### 4. VÉRIFICATIONS SÉCURITÉ
+### =========================================================
+
+### 4.1 — Login Ali (ADMIN)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("aliToken", response.body.token);
+%}
+
+### 4.2 — Ali tente /admin/users/2/produits → 403
+GET {{baseUrl}}/admin/users/2/produits
+Authorization: Bearer {{aliToken}}
+
+### 4.3 — Yara tente d'inspecter un SELLER (Sékou) → 400
+GET {{baseUrl}}/admin/users/6/profil
+Authorization: Bearer {{yaraToken}}
+
+### 4.4 — Yara tente d'inspecter un user inexistant → 404
+GET {{baseUrl}}/admin/users/9999/profil
+Authorization: Bearer {{yaraToken}}
+
+### 4.5 — Yara tente d'inspecter un SUPER_ADMIN (elle-même, id=1) → 400
+GET {{baseUrl}}/admin/users/1/profil
+Authorization: Bearer {{yaraToken}}

@@ -203,6 +203,46 @@ public class AuthService {
         log.info("Mot de passe changé pour {}", email);
     }
 
+    @Transactional
+    public AuthResponseDTO updateProfile(String currentEmail, UpdateProfileDTO dto) {
+        User user = userRepository.findByEmail(currentEmail)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "User introuvable avec l'email : " + currentEmail));
+
+        // Vérifier unicité email si changé
+        if (dto.getEmail() != null && !dto.getEmail().isBlank()
+                && !dto.getEmail().equals(user.getEmail())) {
+            if (userRepository.existsByEmail(dto.getEmail())) {
+                throw new BusinessException(
+                        "Un utilisateur avec l'email " + dto.getEmail() + " existe déjà");
+            }
+            user.setEmail(dto.getEmail());
+        }
+
+        // Vérifier unicité username si changé
+        if (dto.getUsername() != null && !dto.getUsername().isBlank()
+                && !dto.getUsername().equals(user.getUsername())) {
+            if (userRepository.existsByUsername(dto.getUsername())) {
+                throw new BusinessException(
+                        "Le nom d'utilisateur " + dto.getUsername() + " est déjà pris");
+            }
+            user.setUsername(dto.getUsername());
+        }
+
+        // Champs simples
+        if (dto.getPrenom() != null) user.setPrenom(dto.getPrenom());
+        if (dto.getNom() != null) user.setNom(dto.getNom());
+
+        userRepository.save(user);
+        log.info("Profil mis à jour pour {}", user.getEmail());
+
+        // Régénérer le token (car email/username peuvent avoir changé)
+        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
+        String newToken = jwtService.generateToken(userDetails);
+
+        return buildAuthResponse(newToken, user);
+    }
+
     // -----------------------------------------
     // HELPERS PRIVÉS
     // -----------------------------------------

@@ -16,25 +16,27 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * Gestion des USERs (managers) par un ADMIN.
- * <p>
- * ⚠️ Réservé aux ADMINs.
+ * Gestion des USERs (managers).
+ * <ul>
+ *   <li>ADMIN       → crée et gère SES USERs (dans son entreprise)</li>
+ *   <li>SUPER_ADMIN → voit et gère TOUS les USERs (supervision plateforme)</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "USERs (ADMIN)", description = "Gestion des USERs par un ADMIN")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")   // ← LE FIX
+@Tag(name = "USERs", description = "Gestion des USERs par un ADMIN / SUPER_ADMIN")
 public class UserController {
 
     private final UserService userService;
 
     // -----------------------------------------
-    // CREATE
+    // CREATE — ADMIN uniquement (vérifié dans le service)
     // -----------------------------------------
 
     @PostMapping
-    @Operation(summary = "Créer un USER (manager) dans mon entreprise")
+    @Operation(summary = "Créer un USER (ADMIN uniquement)")
     public ResponseEntity<UserResponseDTO> createUser(
             @Valid @RequestBody CreateUserDTO dto) {
         UserResponseDTO created = userService.createUser(dto);
@@ -46,13 +48,13 @@ public class UserController {
     // -----------------------------------------
 
     @GetMapping
-    @Operation(summary = "Liste mes USERs")
+    @Operation(summary = "Liste mes USERs (ADMIN) ou tous (SUPER_ADMIN)")
     public ResponseEntity<List<UserResponseDTO>> getMyUsers() {
         return ResponseEntity.ok(userService.findMyUsers());
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Détail d'un de mes USERs")
+    @Operation(summary = "Détail d'un USER")
     public ResponseEntity<UserResponseDTO> getMyUser(@PathVariable Long id) {
         return ResponseEntity.ok(userService.findMyUserById(id));
     }
@@ -62,7 +64,7 @@ public class UserController {
     // -----------------------------------------
 
     @PutMapping("/{id}")
-    @Operation(summary = "Modifier un de mes USERs")
+    @Operation(summary = "Modifier un USER")
     public ResponseEntity<UserResponseDTO> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserDTO dto) {
@@ -73,5 +75,12 @@ public class UserController {
     @Operation(summary = "Activer/désactiver un USER")
     public ResponseEntity<UserResponseDTO> toggleActif(@PathVariable Long id) {
         return ResponseEntity.ok(userService.toggleActif(id));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Supprimer (soft) un USER")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
     }
 }

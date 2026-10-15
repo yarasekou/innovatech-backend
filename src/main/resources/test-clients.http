@@ -1,0 +1,306 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. LOGIN DES USERs
+### =========================================================
+
+### 1.1 — Login Fatou (USER chez Ali)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("fatouToken", response.body.token);
+    client.log("✅ Fatou");
+%}
+
+### 1.2 — Login Bouba (USER chez Ali)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bouba@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("boubaToken", response.body.token);
+    client.log("✅ Bouba");
+%}
+
+### 1.3 — Login Ibrahima (USER chez Moussa)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ibrahima@fall-info.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("ibrahimaToken", response.body.token);
+    client.log("✅ Ibrahima");
+%}
+
+
+### =========================================================
+### 2. CRÉATION DE CLIENTS (par les USERs)
+### =========================================================
+
+### 2.1 — Fatou crée client 1
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Ndiaye",
+  "prenom": "Moussa",
+  "email": "moussa.ndiaye@example.com",
+  "telephone": "771111111",
+  "adresse": "Sacré-Cœur 3",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouClient1", response.body.id);
+    client.log("✅ Client Fatou 1 : " + response.body.id);
+%}
+
+### 2.2 — Fatou crée client 2
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Diop",
+  "prenom": "Aminata",
+  "email": "aminata.diop@example.com",
+  "telephone": "772222222",
+  "adresse": "Point E",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("fatouClient2", response.body.id);
+%}
+
+### 2.3 — Fatou crée client 3 (Thiès)
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Fall",
+  "prenom": "Ibrahima",
+  "email": "ibrahima.fall@example.com",
+  "telephone": "773333333",
+  "adresse": "Centre-ville",
+  "ville": "Thiès",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+### 2.4 — Bouba crée client 1
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "Sall",
+  "prenom": "Moussa",
+  "email": "moussa.sall@example.com",
+  "telephone": "774444444",
+  "ville": "Saint-Louis",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaClient1", response.body.id);
+%}
+
+### 2.5 — Bouba crée client 2
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "Sy",
+  "prenom": "Fatou",
+  "email": "fatou.sy@example.com",
+  "telephone": "775555555",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+### 2.6 — Ibrahima crée client 1
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "nom": "Ba",
+  "prenom": "Samba",
+  "email": "samba.ba@example.com",
+  "telephone": "776666666",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+> {%
+    client.global.set("ibrahimaClient1", response.body.id);
+%}
+
+
+### =========================================================
+### 3. LISTER LES CLIENTS (isolation par boutique)
+### =========================================================
+
+### 3.1 — Fatou voit SES clients (3)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{fatouToken}}
+
+### 3.2 — Bouba voit SES clients (2)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{boubaToken}}
+
+### 3.3 — Ibrahima voit SES clients (1)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{ibrahimaToken}}
+
+
+### =========================================================
+### 4. DÉTAIL d'un client
+### =========================================================
+
+### 4.1 — Fatou voit client 1
+GET {{baseUrl}}/clients/{{fatouClient1}}
+Authorization: Bearer {{fatouToken}}
+
+### 4.2 — Bouba tente de voir le client de Fatou → 404
+GET {{baseUrl}}/clients/{{fatouClient1}}
+Authorization: Bearer {{boubaToken}}
+
+
+### =========================================================
+### 5. RECHERCHE
+### =========================================================
+
+### 5.1 — Fatou recherche "Ndiaye"
+GET {{baseUrl}}/clients/search?q=Ndiaye
+Authorization: Bearer {{fatouToken}}
+
+### 5.2 — Fatou recherche "Aminata"
+GET {{baseUrl}}/clients/search?q=Aminata
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### 6. UPDATE
+### =========================================================
+
+### 6.1 — Fatou modifie client 1
+PUT {{baseUrl}}/clients/{{fatouClient1}}
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "nom": "Ndiaye",
+  "prenom": "Moussa",
+  "email": "moussa.ndiaye@example.com",
+  "telephone": "779999999",
+  "adresse": "Nouvelle adresse",
+  "ville": "Dakar",
+  "pays": "Sénégal",
+  "actif": true
+}
+
+### 6.2 — Fatou désactive client 1
+PATCH {{baseUrl}}/clients/{{fatouClient1}}/deactivate
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### 7. VÉRIFICATIONS SÉCURITÉ
+### =========================================================
+
+### 7.1 — Ali (ADMIN) voit TOUS les clients de son entreprise
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("aliToken", response.body.token);
+%}
+
+### 7.2 — Ali voit tous les clients (5 : 3 Fatou + 2 Bouba)
+GET {{baseUrl}}/clients
+Authorization: Bearer {{aliToken}}
+
+### 7.3 — Ali tente de créer un client → 403
+POST {{baseUrl}}/clients
+Content-Type: application/json
+Authorization: Bearer {{aliToken}}
+
+{
+  "nom": "Test",
+  "prenom": "Admin",
+  "email": "test.admin@example.com"
+}
+
+### 7.4 — Login Yara (SUPER_ADMIN)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("yaraToken", response.body.token);
+%}
+
+### 7.5 — Yara inspecte les clients d'Ali (id=2)
+GET {{baseUrl}}/admin/users/2/clients
+Authorization: Bearer {{yaraToken}}
+
+### 7.6 — Yara inspecte les clients de Fatou (id=5)
+GET {{baseUrl}}/admin/users/5/clients
+Authorization: Bearer {{yaraToken}}
+
+### 7.7 — Yara tente d'inspecter un USER → 400
+GET {{baseUrl}}/admin/users/5/profil
+Authorization: Bearer {{yaraToken}}
+
+
+### =========================================================
+### 8. SUPPRESSION
+### =========================================================
+
+### 8.1 — Fatou tente de supprimer un client avec commandes → 400
+###       (si le client n'a pas de commande, ça passe)
+DELETE {{baseUrl}}/clients/{{fatouClient2}}
+Authorization: Bearer {{fatouToken}}
+
+### 8.2 — Bouba tente de supprimer le client de Fatou → 404
+DELETE {{baseUrl}}/clients/{{fatouClient1}}
+Authorization: Bearer {{boubaToken}}

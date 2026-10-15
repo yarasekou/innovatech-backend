@@ -1,0 +1,301 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. LOGIN des USERs
+### =========================================================
+
+### 1.1 — Login Fatou (USER chez Ali Électronique)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("fatouToken", response.body.token);
+    client.log("✅ Token Fatou capturé");
+%}
+
+### 1.2 — Login Bouba (USER chez Ali Électronique)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bouba@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("boubaToken", response.body.token);
+    client.log("✅ Token Bouba capturé");
+%}
+
+### 1.3 — Login Ibrahima (USER chez Fall Informatique)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ibrahima@fall-info.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("ibrahimaToken", response.body.token);
+    client.log("✅ Token Ibrahima capturé");
+%}
+
+
+### =========================================================
+### 2. CRÉATION DES SELLERs (par les USERs)
+### =========================================================
+
+### 2.1 — Fatou crée Sékou (SELLER)
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "username": "sekou",
+  "email": "sekou@ali-elec.sn",
+  "password": "password123",
+  "prenom": "Sékou",
+  "nom": "Diallo"
+}
+
+> {%
+    client.global.set("sekouId", response.body.id);
+    client.log("✅ SELLER Sékou créé : " + response.body.id);
+%}
+
+### 2.2 — Fatou crée Mariama (SELLER)
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+Authorization: Bearer {{fatouToken}}
+
+{
+  "username": "mariama",
+  "email": "mariama@ali-elec.sn",
+  "password": "password123",
+  "prenom": "Mariama",
+  "nom": "Ba"
+}
+
+> {%
+    client.global.set("mariamaId", response.body.id);
+    client.log("✅ SELLER Mariama créée");
+%}
+
+### 2.3 — Bouba crée Abdou (SELLER)
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "username": "abdou",
+  "email": "abdou@ali-elec.sn",
+  "password": "password123",
+  "prenom": "Abdou",
+  "nom": "Sow"
+}
+
+> {%
+    client.global.set("abdouId", response.body.id);
+    client.log("✅ SELLER Abdou créé");
+%}
+
+### 2.4 — Ibrahima crée Awa (SELLER)
+POST {{baseUrl}}/sellers
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "username": "awa_seller",
+  "email": "awa.seller@fall-info.sn",
+  "password": "password123",
+  "prenom": "Awa",
+  "nom": "Ndiaye"
+}
+
+> {%
+    client.global.set("awaSellerId", response.body.id);
+    client.log("✅ SELLER Awa créée");
+%}
+
+
+### =========================================================
+### 3. LISTER les SELLERs
+### =========================================================
+
+### 3.1 — Fatou voit SES 2 SELLERs
+GET {{baseUrl}}/sellers
+Authorization: Bearer {{fatouToken}}
+
+### 3.2 — Bouba voit SON 1 SELLER
+GET {{baseUrl}}/sellers
+Authorization: Bearer {{boubaToken}}
+
+### 3.3 — Ibrahima voit SA 1 SELLER
+GET {{baseUrl}}/sellers
+Authorization: Bearer {{ibrahimaToken}}
+
+
+### =========================================================
+### 4. DÉTAIL d'un SELLER
+### =========================================================
+
+### 4.1 — Fatou voit Sékou
+GET {{baseUrl}}/sellers/{{sekouId}}
+Authorization: Bearer {{fatouToken}}
+
+### 4.2 — Bouba tente de voir Sékou (pas le sien) → 404
+GET {{baseUrl}}/sellers/{{sekouId}}
+Authorization: Bearer {{boubaToken}}
+
+
+### =========================================================
+### 5. LOGIN des SELLERs
+### =========================================================
+
+### 5.1 — Login Sékou (SELLER)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "sekou@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("sekouToken", response.body.token);
+    client.log("✅ Token Sékou capturé");
+%}
+
+### 5.2 — Login Mariama (SELLER)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "mariama@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("mariamaToken", response.body.token);
+    client.log("✅ Token Mariama capturé");
+%}
+
+
+### =========================================================
+### 6. VÉRIFICATIONS SELLER
+### =========================================================
+
+### 6.1 — Sékou voit les produits de sa patronne (Fatou)
+GET {{baseUrl}}/produits
+Authorization: Bearer {{sekouToken}}
+
+### 6.2 — Sékou voit les clients de sa patronne
+GET {{baseUrl}}/clients
+Authorization: Bearer {{sekouToken}}
+
+### 6.3 — Sékou voit les commandes de sa patronne
+GET {{baseUrl}}/commandes
+Authorization: Bearer {{sekouToken}}
+
+### 6.4 — Sékou tente de voir /users → 403
+GET {{baseUrl}}/users
+Authorization: Bearer {{sekouToken}}
+
+### 6.5 — Sékou tente de créer une catégorie pour sa patronne → 201
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{sekouToken}}
+
+{
+  "nom": "Catégorie de Sékou",
+  "actif": true
+}
+
+
+### =========================================================
+### 7. ACTIVER / DÉSACTIVER un SELLER
+### =========================================================
+
+### 7.1 — Fatou désactive Sékou
+PATCH {{baseUrl}}/sellers/{{sekouId}}/toggle-actif
+Authorization: Bearer {{fatouToken}}
+
+### 7.2 — Sékou désactivé tente de se connecter → 401
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "sekou@ali-elec.sn",
+  "password": "password123"
+}
+
+### 7.3 — Fatou réactive Sékou
+PATCH {{baseUrl}}/sellers/{{sekouId}}/toggle-actif
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### 8. SUPPRIMER un SELLER
+### =========================================================
+
+### 8.1 — Fatou supprime Mariama
+DELETE {{baseUrl}}/sellers/{{mariamaId}}
+Authorization: Bearer {{fatouToken}}
+
+### 8.2 — Fatou tente de voir Mariama → 404
+GET {{baseUrl}}/sellers/{{mariamaId}}
+Authorization: Bearer {{fatouToken}}
+
+
+### =========================================================
+### 9. VÉRIFICATIONS D'ISOLATION
+### =========================================================
+
+### 9.1 — Fatou tente de créer un SELLER chez Bouba (pas possible via endpoint)
+###       (à la place : Bouba voit ses SELLERs, pas ceux de Fatou)
+GET {{baseUrl}}/sellers
+Authorization: Bearer {{boubaToken}}
+
+### 9.2 — Ali (ADMIN) tente /sellers → 403 (réservé USER)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("aliToken", response.body.token);
+%}
+
+### 9.3 — Ali tente /sellers → 403
+GET {{baseUrl}}/sellers
+Authorization: Bearer {{aliToken}}
+
+### 9.4 — Yara (SUPER_ADMIN) tente /sellers → 403
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "yara@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("yaraToken", response.body.token);
+%}
+
+### 9.5 — Yara tente /sellers → 403
+GET {{baseUrl}}/sellers
+Authorization: Bearer {{yaraToken}}

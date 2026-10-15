@@ -90,4 +90,13 @@ public class AuthController {
         authService.changePassword(userDetails.getUsername(), dto);
         return ResponseEntity.ok().build();
     }
+
+    @PutMapping("/profile")
+    @Operation(summary = "Modifier mon profil")
+    public ResponseEntity<AuthResponseDTO> updateProfile(
+            @Valid @RequestBody UpdateProfileDTO dto,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        return ResponseEntity.ok(
+                authService.updateProfile(userDetails.getUsername(), dto));
+    }
 }

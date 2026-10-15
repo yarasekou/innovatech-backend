@@ -13,7 +13,7 @@ public class PhotoProduitDTO {
 
     private Long id;
     private Long produitId;
-    private String url;           // URL complète pour le client
+    private String url;
     private String nomFichier;
     private String titre;
     private boolean principale;

@@ -38,7 +38,6 @@ public class EntrepriseController {
     public ResponseEntity<EntrepriseResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(entrepriseService.findById(id));
     }
-
     // -----------------------------------------
     // UPDATE — ADMIN (owner) uniquement
     // ⚠️ Plus de POST : la création se fait à l'inscription via /auth/register-admin

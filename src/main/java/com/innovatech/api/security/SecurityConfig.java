@@ -16,18 +16,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-/**
- * Configuration Spring Security pour l'API.
- * <p>
- * Hiérarchie des rôles :
- * <ul>
- *   <li>ROLE_SUPER_ADMIN : plateforme InnovaTech — voit TOUT</li>
- *   <li>ROLE_ADMIN       : owner d'UNE entreprise — voit TOUT dans SON entreprise</li>
- *   <li>ROLE_USER        : manager interne (boutique) — voit SES données</li>
- *   <li>ROLE_SELLER      : vendeur terrain — voit les données de son patron (USER)</li>
- * </ul>
- */
+import java.util.List;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -40,21 +34,13 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // 1. Désactiver CSRF (API REST stateless)
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // 2. Désactiver CORS par défaut
-                .cors(AbstractHttpConfigurer::disable)
-
-                // 3. Stateless (pas de session HTTP)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))  // ← ICI
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 4. Autorisation des requêtes
                 .authorizeHttpRequests(auth -> auth
-                        // -----------------------------------------
-                        // Routes publiques
-                        // -----------------------------------------
+                        // Public
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/actuator/**").permitAll()
                         .requestMatchers(
@@ -65,44 +51,52 @@ public class SecurityConfig {
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                        // -----------------------------------------
-                        // Endpoints plateforme (SUPER_ADMIN uniquement)
-                        // -----------------------------------------
+                        // Plateforme
                         .requestMatchers("/admin/**").hasRole("SUPER_ADMIN")
 
-                        // -----------------------------------------
-                        // Endpoints USERs (créés par un ADMIN)
-                        // ⚠️ Un ADMIN crée ses USERs
-                        // -----------------------------------------
-                        .requestMatchers("/users/**").hasRole("ADMIN")
-
-                        // -----------------------------------------
-                        // Endpoints SELLERs (créés par un USER)
-                        // -----------------------------------------
+                        // Gestion
+                        .requestMatchers("/users/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .requestMatchers("/sellers/**").hasRole("USER")
 
-                        // -----------------------------------------
-                        // Endpoints entreprise
-                        // Accessible à tous les rôles "tenant"
-                        // -----------------------------------------
+                        // Entreprise
                         .requestMatchers("/entreprises/**")
-                        .hasAnyRole("ADMIN", "USER", "SELLER")
+                        .hasAnyRole("SUPER_ADMIN", "ADMIN", "USER", "SELLER")
 
-                        // -----------------------------------------
-                        // Tout le reste : authentifié
-                        // Le filtrage fin (par rôle / entreprise / user)
-                        // est fait dans les services
-                        // -----------------------------------------
+                        // Reste
                         .anyRequest().authenticated()
                 )
 
-                // 5. Provider d'authentification
                 .authenticationProvider(authenticationProvider())
-
-                // 6. Filtre JWT
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    // ============================================================
+    // CORS — NOUVELLE MÉTHODE
+    // ============================================================
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:5173",
+                "http://localhost:3000",
+                "http://localhost:4173"
+        ));
+
+        configuration.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"
+        ));
+
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
     @Bean

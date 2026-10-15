@@ -20,7 +20,7 @@ public class PhotoProduitMapper {
         return PhotoProduitDTO.builder()
                 .id(entity.getId())
                 .produitId(entity.getProduit() != null ? entity.getProduit().getId() : null)
-                .url(contextPath + "/" + uploadDir + "/" + entity.getNomFichier())
+                .url(contextPath + "/" + uploadDir + "/produits/" + entity.getNomFichier())
                 .nomFichier(entity.getNomFichier())
                 .titre(entity.getTitre())
                 .principale(entity.isPrincipale())

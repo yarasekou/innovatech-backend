@@ -110,6 +110,10 @@ public class User {
     @Column(name = "date_modification")
     private LocalDateTime dateModification;
 
+    @Column(name = "supprime", nullable = false)
+    @Builder.Default
+    private boolean supprime = false;
+
     // -----------------------------------------
     // Méthodes utilitaires
     // -----------------------------------------

@@ -21,14 +21,12 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Service de gestion des USERs (managers) par un ADMIN.
+ * Service de gestion des USERs (managers).
  * <p>
- * Règles métier :
+ * Règles :
  * <ul>
- *   <li>Un ADMIN crée des USERs dans SON entreprise</li>
- *   <li>Chaque USER est un silo isolé (sa propre boutique)</li>
- *   <li>Un USER ne voit PAS les autres USERs de la même entreprise</li>
- *   <li>Un ADMIN peut désactiver un USER (jamais supprimer)</li>
+ *   <li>ADMIN       → crée et gère SES USERs (dans son entreprise)</li>
+ *   <li>SUPER_ADMIN → voit et gère TOUS les USERs (supervision plateforme)</li>
  * </ul>
  */
 @Service
@@ -42,38 +40,34 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
 
     // -----------------------------------------
-    // CREATE — ADMIN crée un USER
+    // CREATE — ADMIN uniquement
     // -----------------------------------------
 
     @Transactional
     public UserResponseDTO createUser(CreateUserDTO dto) {
-        User admin = getCurrentUser();
+        User currentUser = getCurrentUser();
 
         // Seul un ADMIN peut créer un USER
-        if (!admin.hasRole(Role.ROLE_ADMIN)) {
-            throw new BusinessException("Seul un ADMIN peut créer des USERs");
+        if (!currentUser.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException(
+                    "Seul un ADMIN peut créer des USERs. Créez une entreprise d'abord.");
         }
 
-        // L'ADMIN doit avoir une entreprise
-        if (admin.getEntreprise() == null) {
+        if (currentUser.getEntreprise() == null) {
             throw new BusinessException(
                     "Vous devez avoir une entreprise avant de créer des USERs");
         }
 
-        // Vérifier unicité email
+        // Vérifier unicité
         if (userRepository.existsByEmail(dto.getEmail())) {
             throw new BusinessException(
                     "Un utilisateur avec l'email " + dto.getEmail() + " existe déjà");
         }
-
-        // Vérifier unicité username
         if (userRepository.existsByUsername(dto.getUsername())) {
             throw new BusinessException(
                     "Le nom d'utilisateur " + dto.getUsername() + " est déjà pris");
         }
 
-        // Créer le USER (rôle unique ROLE_USER)
-        // ⚠️ HashSet (mutable), PAS Set.of() → Hibernate a besoin d'une collection mutable
         Set<Role> roles = new HashSet<>();
         roles.add(Role.ROLE_USER);
 
@@ -84,41 +78,67 @@ public class UserService {
                 .prenom(dto.getPrenom())
                 .nom(dto.getNom())
                 .roles(roles)
-                .entreprise(admin.getEntreprise())   // ← héritage entreprise
+                .entreprise(currentUser.getEntreprise())
                 .actif(true)
                 .build();
 
         User saved = userRepository.save(user);
-        log.info("USER {} créé par ADMIN {} (entreprise: {})",
-                saved.getEmail(), admin.getEmail(), admin.getEntreprise().getNom());
+        log.info("USER {} créé par {} (entreprise: {})",
+                saved.getEmail(), currentUser.getEmail(),
+                currentUser.getEntreprise().getNom());
         return userMapper.toResponseDTO(saved);
     }
 
     // -----------------------------------------
-    // READ — ADMIN voit SES USERs
+    // READ — ADMIN voit les siens, SUPER_ADMIN voit tout
     // -----------------------------------------
 
     public List<UserResponseDTO> findMyUsers() {
-        User admin = getCurrentUser();
+        User currentUser = getCurrentUser();
 
-        if (!admin.hasRole(Role.ROLE_ADMIN)) {
-            throw new BusinessException("Seul un ADMIN peut lister ses USERs");
+        // -----------------------------------------
+        // SUPER_ADMIN → ADMINs + USERs (sans lui, sans SELLERs)
+        // -----------------------------------------
+        if (currentUser.hasRole(Role.ROLE_SUPER_ADMIN)) {
+            return userRepository.findAllWithEntreprise()
+                    .stream()
+                    .filter(u -> !u.getId().equals(currentUser.getId()))           // sans lui
+                    .filter(u -> !u.hasRole(Role.ROLE_SELLER))                     // sans SELLERs
+                    .map(userMapper::toResponseDTO)
+                    .toList();
         }
 
-        if (admin.getEntreprise() == null) {
-            throw new BusinessException("Vous n'avez pas d'entreprise");
+        // -----------------------------------------
+        // ADMIN → sa ligne + ses USERs (sans SELLERs)
+        // -----------------------------------------
+        if (currentUser.hasRole(Role.ROLE_ADMIN)) {
+            if (currentUser.getEntreprise() == null) {
+                throw new BusinessException("Vous n'avez pas d'entreprise");
+            }
+
+            java.util.List<User> result = new java.util.ArrayList<>();
+
+            // 1. L'ADMIN lui-même
+            result.add(currentUser);
+
+            // 2. Ses USERs (findByEntrepriseIdAndRole filtre déjà sur ROLE_USER)
+            result.addAll(userRepository.findByEntrepriseIdAndRole(
+                    currentUser.getEntreprise().getId(), Role.ROLE_USER));
+
+            return result.stream()
+                    .map(userMapper::toResponseDTO)
+                    .toList();
         }
 
-        return userRepository.findByEntrepriseIdAndRole(
-                        admin.getEntreprise().getId(), Role.ROLE_USER)
-                .stream()
-                .map(userMapper::toResponseDTO)
-                .toList();
+        // -----------------------------------------
+        // USER / SELLER → refusé
+        // -----------------------------------------
+        throw new BusinessException("Accès refusé");
     }
 
     public UserResponseDTO findMyUserById(Long userId) {
-        User admin = getCurrentUser();
-        User user = findMyUserEntity(admin, userId);
+        User currentUser = getCurrentUser();
+        User user = findAccessibleUser(currentUser, userId);
         return userMapper.toResponseDTO(user);
     }
 
@@ -128,8 +148,8 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO updateUser(Long userId, UpdateUserDTO dto) {
-        User admin = getCurrentUser();
-        User user = findMyUserEntity(admin, userId);
+        User currentUser = getCurrentUser();
+        User user = findAccessibleUser(currentUser, userId);
 
         if (dto.getPrenom() != null) {
             user.setPrenom(dto.getPrenom());
@@ -142,7 +162,7 @@ public class UserService {
         }
 
         User updated = userRepository.save(user);
-        log.info("USER {} modifié par ADMIN {}", user.getEmail(), admin.getEmail());
+        log.info("USER {} modifié par {}", user.getEmail(), currentUser.getEmail());
         return userMapper.toResponseDTO(updated);
     }
 
@@ -152,15 +172,15 @@ public class UserService {
 
     @Transactional
     public UserResponseDTO toggleActif(Long userId) {
-        User admin = getCurrentUser();
-        User user = findMyUserEntity(admin, userId);
+        User currentUser = getCurrentUser();
+        User user = findAccessibleUser(currentUser, userId);
 
         user.setActif(!user.isActif());
         User updated = userRepository.save(user);
-        log.info("USER {} {} par ADMIN {}",
+        log.info("USER {} {} par {}",
                 user.getEmail(),
                 user.isActif() ? "activé" : "désactivé",
-                admin.getEmail());
+                currentUser.getEmail());
         return userMapper.toResponseDTO(updated);
     }
 
@@ -169,28 +189,41 @@ public class UserService {
     // -----------------------------------------
 
     /**
-     * Vérifie que l'utilisateur connecté est un ADMIN
-     * et que le USER ciblé appartient à SA entreprise.
+     * Récupère un USER en vérifiant les droits d'accès.
+     * <ul>
+     *   <li>ADMIN → doit être dans SON entreprise</li>
+     *   <li>SUPER_ADMIN → peut accéder à n'importe quel USER</li>
+     * </ul>
      */
-    private User findMyUserEntity(User admin, Long userId) {
-        if (!admin.hasRole(Role.ROLE_ADMIN)) {
-            throw new BusinessException("Seul un ADMIN peut gérer ses USERs");
-        }
-
-        if (admin.getEntreprise() == null) {
-            throw new BusinessException("Vous n'avez pas d'entreprise");
-        }
-
+    private User findAccessibleUser(User currentUser, Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
 
-        // Vérifier appartenance entreprise
-        if (user.getEntreprise() == null
-                || !user.getEntreprise().getId().equals(admin.getEntreprise().getId())) {
+        // Refuser les utilisateurs déjà supprimés
+        if (user.isSupprime()) {
             throw new ResourceNotFoundException("User", userId);
         }
 
-        // Vérifier que c'est bien un USER (pas un ADMIN, ni un SELLER)
+        // SUPER_ADMIN → accès total
+        if (currentUser.hasRole(Role.ROLE_SUPER_ADMIN)) {
+            // Vérifier que c'est bien un USER (pas un ADMIN/SUPER_ADMIN)
+            if (!user.hasRole(Role.ROLE_USER)) {
+                throw new ResourceNotFoundException("User", userId);
+            }
+            return user;
+        }
+
+        // ADMIN → vérifier l'appartenance
+        if (!currentUser.hasRole(Role.ROLE_ADMIN)) {
+            throw new BusinessException("Accès refusé");
+        }
+
+        if (currentUser.getEntreprise() == null
+                || user.getEntreprise() == null
+                || !user.getEntreprise().getId().equals(currentUser.getEntreprise().getId())) {
+            throw new ResourceNotFoundException("User", userId);
+        }
+
         if (!user.hasRole(Role.ROLE_USER)) {
             throw new ResourceNotFoundException("User", userId);
         }
@@ -206,5 +239,30 @@ public class UserService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User introuvable avec l'email : " + email));
+    }
+
+    @Transactional
+    public void deleteUser(Long userId) {
+        User currentUser = getCurrentUser();
+        User user = findAccessibleUser(currentUser, userId);
+
+        // Vérifier qu'il ne se supprime pas lui-même
+        if (user.getId().equals(currentUser.getId())) {
+            throw new BusinessException(
+                    "Vous ne pouvez pas supprimer votre propre compte");
+        }
+
+        // Vérifier qu'il n'est pas SUPER_ADMIN
+        if (user.hasRole(Role.ROLE_SUPER_ADMIN)) {
+            throw new BusinessException(
+                    "Impossible de supprimer un SUPER_ADMIN");
+        }
+
+        // Soft delete
+        user.setSupprime(true);
+        user.setActif(false);
+        userRepository.save(user);
+
+        log.info("USER {} supprimé (soft) par {}", user.getEmail(), currentUser.getEmail());
     }
 }

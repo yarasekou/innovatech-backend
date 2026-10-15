@@ -1,0 +1,609 @@
+### =========================================================
+### VARIABLES
+### =========================================================
+@baseUrl = http://localhost:8080/api
+
+
+### =========================================================
+### 1. LOGIN DES 5 USERs
+### =========================================================
+
+### 1.1 — Login Fatou (Ali Électronique)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "fatou@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("fatouToken", response.body.token);
+    client.log("✅ Fatou");
+%}
+
+### 1.2 — Login Bouba (Ali Électronique)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "bouba@ali-elec.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("boubaToken", response.body.token);
+    client.log("✅ Bouba");
+%}
+
+### 1.3 — Login Ibrahima (Fall Informatique)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ibrahima@fall-info.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("ibrahimaToken", response.body.token);
+    client.log("✅ Ibrahima");
+%}
+
+### 1.4 — Login Coumba (Fall Informatique)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "coumba@fall-info.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("coumbaToken", response.body.token);
+    client.log("✅ Coumba");
+%}
+
+### 1.5 — Login Ousmane (Awa Textile)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ousmane@awa-textile.sn",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("ousmaneToken", response.body.token);
+    client.log("✅ Ousmane");
+%}
+
+
+### =========================================================
+### 2. CATÉGORIES + PRODUITS DE BOUBA (Ali Électronique)
+### =========================================================
+
+### ─────────────────────────────────────────
+### 2.1 — Racine : Éclairage
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "Éclairage",
+  "description": "Ampoules et luminaires",
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaEclairage", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 2.2 — Sous-cat : Ampoules connectées
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "Ampoules connectées",
+  "parentId": {{boubaEclairage}},
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaAmpoules", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 2.3 — Sous-sous-cat : Philips Hue
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "Philips Hue",
+  "parentId": {{boubaAmpoules}},
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaPhilips", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 2.4 — Sous-sous-cat : LIFX
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "nom": "LIFX",
+  "parentId": {{boubaAmpoules}},
+  "actif": true
+}
+
+> {%
+    client.global.set("boubaLifx", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 2.5 — Produit Philips Hue White
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "reference": "PHILIPS-HUE-WHITE",
+  "nom": "Philips Hue White & Color",
+  "prix": 45000.00,
+  "prixAchat": 32000.00,
+  "stock": 20,
+  "categorieId": {{boubaPhilips}},
+  "actif": true
+}
+
+### ─────────────────────────────────────────
+### 2.6 — Produit LIFX Mini
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{boubaToken}}
+
+{
+  "reference": "LIFX-MINI",
+  "nom": "LIFX Mini White",
+  "prix": 35000.00,
+  "prixAchat": 25000.00,
+  "stock": 15,
+  "categorieId": {{boubaLifx}},
+  "actif": true
+}
+
+
+### =========================================================
+### 3. CATÉGORIES + PRODUITS D'IBRAHIMA (Fall Informatique)
+### =========================================================
+
+### ─────────────────────────────────────────
+### 3.1 — Racine : Ordinateurs
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "nom": "Ordinateurs",
+  "actif": true
+}
+
+> {%
+    client.global.set("ibraOrdinateurs", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 3.2 — Sous-cat : Portables
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "nom": "Portables",
+  "parentId": {{ibraOrdinateurs}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ibraPortables", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 3.3 — Sous-sous-cat : Dell
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "nom": "Dell",
+  "parentId": {{ibraPortables}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ibraDell", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 3.4 — Sous-sous-cat : Lenovo
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "nom": "Lenovo",
+  "parentId": {{ibraPortables}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ibraLenovo", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 3.5 — Produit Dell XPS 13
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "reference": "DELL-XPS-13",
+  "nom": "Dell XPS 13",
+  "prix": 850000.00,
+  "prixAchat": 650000.00,
+  "stock": 5,
+  "categorieId": {{ibraDell}},
+  "actif": true
+}
+
+### ─────────────────────────────────────────
+### 3.6 — Produit Lenovo ThinkPad X1
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{ibrahimaToken}}
+
+{
+  "reference": "LENOVO-X1",
+  "nom": "Lenovo ThinkPad X1 Carbon",
+  "prix": 950000.00,
+  "prixAchat": 720000.00,
+  "stock": 3,
+  "categorieId": {{ibraLenovo}},
+  "actif": true
+}
+
+
+### =========================================================
+### 4. CATÉGORIES + PRODUITS DE COUMBA (Fall Informatique)
+### =========================================================
+
+### ─────────────────────────────────────────
+### 4.1 — Racine : Périphériques
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "nom": "Périphériques",
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaPeriph", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 4.2 — Sous-cat : Souris
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "nom": "Souris",
+  "parentId": {{coumbaPeriph}},
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaSouris", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 4.3 — Sous-sous-cat : Logitech
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "nom": "Logitech",
+  "parentId": {{coumbaSouris}},
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaLogitech", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 4.4 — Sous-cat : Claviers
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "nom": "Claviers",
+  "parentId": {{coumbaPeriph}},
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaClaviers", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 4.5 — Sous-sous-cat : Corsair
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "nom": "Corsair",
+  "parentId": {{coumbaClaviers}},
+  "actif": true
+}
+
+> {%
+    client.global.set("coumbaCorsair", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 4.6 — Produit Souris Logitech MX Master 3
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "reference": "LOGITECH-MX3",
+  "nom": "Logitech MX Master 3",
+  "prix": 85000.00,
+  "prixAchat": 60000.00,
+  "stock": 12,
+  "categorieId": {{coumbaLogitech}},
+  "actif": true
+}
+
+### ─────────────────────────────────────────
+### 4.7 — Produit Clavier Corsair K95
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{coumbaToken}}
+
+{
+  "reference": "CORSAIR-K95",
+  "nom": "Corsair K95 RGB",
+  "prix": 120000.00,
+  "prixAchat": 85000.00,
+  "stock": 8,
+  "categorieId": {{coumbaCorsair}},
+  "actif": true
+}
+
+
+### =========================================================
+### 5. CATÉGORIES + PRODUITS D'OUSMANE (Awa Textile)
+### =========================================================
+
+### ─────────────────────────────────────────
+### 5.1 — Racine : Vêtements
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "nom": "Vêtements",
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneVetements", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 5.2 — Sous-cat : Hommes
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "nom": "Hommes",
+  "parentId": {{ousmaneVetements}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneHommes", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 5.3 — Sous-sous-cat : Chemises
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "nom": "Chemises",
+  "parentId": {{ousmaneHommes}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneChemises", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 5.4 — Sous-cat : Femmes
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "nom": "Femmes",
+  "parentId": {{ousmaneVetements}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneFemmes", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 5.5 — Sous-sous-cat : Robes
+### ─────────────────────────────────────────
+POST {{baseUrl}}/categories
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "nom": "Robes",
+  "parentId": {{ousmaneFemmes}},
+  "actif": true
+}
+
+> {%
+    client.global.set("ousmaneRobes", response.body.id);
+%}
+
+### ─────────────────────────────────────────
+### 5.6 — Produit Chemise Bazin
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "reference": "CHEMISE-BAZIN",
+  "nom": "Chemise en Bazin",
+  "prix": 35000.00,
+  "prixAchat": 20000.00,
+  "stock": 25,
+  "categorieId": {{ousmaneChemises}},
+  "actif": true
+}
+
+### ─────────────────────────────────────────
+### 5.7 — Produit Robe Wax
+### ─────────────────────────────────────────
+POST {{baseUrl}}/produits
+Content-Type: application/json
+Authorization: Bearer {{ousmaneToken}}
+
+{
+  "reference": "ROBE-WAX",
+  "nom": "Robe en Wax",
+  "prix": 45000.00,
+  "prixAchat": 25000.00,
+  "stock": 15,
+  "categorieId": {{ousmaneRobes}},
+  "actif": true
+}
+
+
+### =========================================================
+### 6. VÉRIFICATIONS
+### =========================================================
+
+### 6.1 — Fatou voit ses catégories (les 17 précédentes)
+GET {{baseUrl}}/categories
+Authorization: Bearer {{fatouToken}}
+
+### 6.2 — Bouba voit ses 4 catégories
+GET {{baseUrl}}/categories
+Authorization: Bearer {{boubaToken}}
+
+### 6.3 — Ibrahima voit ses 4 catégories
+GET {{baseUrl}}/categories
+Authorization: Bearer {{ibrahimaToken}}
+
+### 6.4 — Coumba voit ses 5 catégories
+GET {{baseUrl}}/categories
+Authorization: Bearer {{coumbaToken}}
+
+### 6.4 — Ousmane voit ses 5 catégories
+GET {{baseUrl}}/categories
+Authorization: Bearer {{ousmaneToken}}
+
+### 6.5 — Fatou voit ses 8 produits
+GET {{baseUrl}}/produits
+Authorization: Bearer {{fatouToken}}
+
+### 6.6 — Bouba voit ses 2 produits
+GET {{baseUrl}}/produits
+Authorization: Bearer {{boubaToken}}
+
+### 6.7 — Ibrahima voit ses 2 produits
+GET {{baseUrl}}/produits
+Authorization: Bearer {{ibrahimaToken}}
+
+### 6.8 — Coumba voit ses 2 produits
+GET {{baseUrl}}/produits
+Authorization: Bearer {{coumbaToken}}
+
+### 6.9 — Ousmane voit ses 2 produits
+GET {{baseUrl}}/produits
+Authorization: Bearer {{ousmaneToken}}
+
+
+### =========================================================
+### 7. INSPECTION PAR ALI (ADMIN) — voit tout son entreprise
+### =========================================================
+
+### 7.1 — Login Ali
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "ali@innovatech.com",
+  "password": "password123"
+}
+
+> {%
+    client.global.set("aliToken", response.body.token);
+%}
+
+### 7.2 — Ali voit toutes les catégories de son entreprise (Fatou + Bouba)
+GET {{baseUrl}}/categories
+Authorization: Bearer {{aliToken}}
+
+### 7.3 — Ali voit tous les produits de son entreprise
+GET {{baseUrl}}/produits
+Authorization: Bearer {{aliToken}}
