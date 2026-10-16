@@ -45,6 +45,11 @@ public class AdminInspectionService {
     private final FournisseurMapper fournisseurMapper;
     private final CommandeMapper commandeMapper;
 
+    private final PaiementRepository paiementRepository;
+    private final PaiementMapper paiementMapper;
+
+    private final RetourRepository retourRepository;
+    private final RetourMapper retourMapper;
     // -----------------------------------------
     // Résolution du user ciblé
     // -----------------------------------------
@@ -180,6 +185,34 @@ public class AdminInspectionService {
         return commandeRepository.findByEntrepriseIdWithDetails(entrepriseId)
                 .stream()
                 .map(commandeMapper::toResponseDTO)
+                .toList();
+    }
+
+    // -----------------------------------------
+    // 8. Paiements de l'entreprise
+    // -----------------------------------------
+
+    public List<PaiementResponseDTO> getPaiements(Long userId) {
+        User user = resolveTargetUser(userId);
+        Long entrepriseId = user.getEntreprise().getId();
+
+        return paiementRepository.findByEntrepriseIdWithDetails(entrepriseId)
+                .stream()
+                .map(paiementMapper::toResponseDTO)
+                .toList();
+    }
+
+    // -----------------------------------------
+    // 9. Retours de l'entreprise
+    // -----------------------------------------
+
+    public List<RetourResponseDTO> getRetours(Long userId) {
+        User user = resolveTargetUser(userId);
+        Long entrepriseId = user.getEntreprise().getId();
+
+        return retourRepository.findByEntrepriseIdWithDetails(entrepriseId)
+                .stream()
+                .map(retourMapper::toResponseDTO)
                 .toList();
     }
 }

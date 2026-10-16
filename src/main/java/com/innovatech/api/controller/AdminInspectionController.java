@@ -89,4 +89,24 @@ public class AdminInspectionController {
     public ResponseEntity<List<CommandeResponseDTO>> getCommandes(@PathVariable Long userId) {
         return ResponseEntity.ok(adminInspectionService.getCommandes(userId));
     }
+
+    // -----------------------------------------
+    // 8. Paiements
+    // -----------------------------------------
+
+    @GetMapping("/{userId}/paiements")
+    @Operation(summary = "Paiements de l'entreprise du user ciblé")
+    public ResponseEntity<List<PaiementResponseDTO>> getPaiements(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminInspectionService.getPaiements(userId));
+    }
+
+    // -----------------------------------------
+    // 9. Retours
+    // -----------------------------------------
+
+    @GetMapping("/{userId}/retours")
+    @Operation(summary = "Retours de l'entreprise du user ciblé")
+    public ResponseEntity<List<RetourResponseDTO>> getRetours(@PathVariable Long userId) {
+        return ResponseEntity.ok(adminInspectionService.getRetours(userId));
+    }
 }
