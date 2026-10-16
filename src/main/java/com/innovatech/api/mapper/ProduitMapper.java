@@ -112,6 +112,7 @@ public class ProduitMapper {
         }
 
         // Photos
+        // Photos
         if (entity.getPhotos() != null && !entity.getPhotos().isEmpty()) {
             List<PhotoProduitDTO> photosDTO = entity.getPhotos().stream()
                     .map(this::toPhotoDTO)
@@ -125,7 +126,9 @@ public class ProduitMapper {
                             .map(PhotoProduitDTO::getUrl)
                             .orElse(photosDTO.get(0).getUrl()));
         } else {
-            builder.nbPhotos(0);
+            // ⚠️ FIX : toujours un tableau vide, jamais null
+            builder.photos(List.of())
+                    .nbPhotos(0);
         }
 
         return builder.build();

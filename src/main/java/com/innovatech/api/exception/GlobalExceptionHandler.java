@@ -5,13 +5,15 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -48,6 +50,28 @@ public class GlobalExceptionHandler {
     }
 
     // -----------------------------------------
+    // 404 - Ressource statique introuvable (images, uploads…)
+    // ⚠️ NOUVEAU : évite les 500 sur photos manquantes
+    // -----------------------------------------
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResourceFound(
+            NoResourceFoundException ex,
+            HttpServletRequest request) {
+
+        log.warn("Ressource statique introuvable : {}", ex.getResourcePath());
+
+        ApiError error = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message("Fichier introuvable")
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+    }
+
+    // -----------------------------------------
     // 400 - Erreur métier
     // -----------------------------------------
     @ExceptionHandler(BusinessException.class)
@@ -62,6 +86,29 @@ public class GlobalExceptionHandler {
                 .status(HttpStatus.BAD_REQUEST.value())
                 .error("Business Error")
                 .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.badRequest().body(error);
+    }
+
+    // -----------------------------------------
+    // 400 - Paramètre de type invalide (ex: /commandes/NaN)
+    // ⚠️ NOUVEAU : évite les 500 sur IDs invalides
+    // -----------------------------------------
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatch(
+            MethodArgumentTypeMismatchException ex,
+            HttpServletRequest request) {
+
+        log.warn("Paramètre invalide : {} = {}",
+                ex.getName(), ex.getValue());
+
+        ApiError error = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message("Paramètre invalide : " + ex.getName())
                 .path(request.getRequestURI())
                 .build();
 
@@ -96,6 +143,65 @@ public class GlobalExceptionHandler {
     }
 
     // -----------------------------------------
+    // 401 - Mauvais identifiants
+    // -----------------------------------------
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<ApiError> handleBadCredentials(
+            BadCredentialsException ex,
+            HttpServletRequest request) {
+
+        log.warn("Tentative de connexion échouée : {}", ex.getMessage());
+
+        ApiError error = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error("Unauthorized")
+                .message("Email ou mot de passe incorrect")
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
+    // -----------------------------------------
+    // 401 - Non authentifié
+    // -----------------------------------------
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthentication(
+            AuthenticationException ex,
+            HttpServletRequest request) {
+
+        ApiError error = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error("Unauthorized")
+                .message("Authentification requise")
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
+    // -----------------------------------------
+    // 403 - Accès refusé
+    // -----------------------------------------
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiError> handleAccessDenied(
+            AccessDeniedException ex,
+            HttpServletRequest request) {
+
+        ApiError error = ApiError.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .message("Vous n'avez pas les droits pour accéder à cette ressource")
+                .path(request.getRequestURI())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
+    }
+
+    // -----------------------------------------
     // 500 - Fallback : toute autre exception
     // -----------------------------------------
     @ExceptionHandler(Exception.class)
@@ -115,65 +221,4 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
-
-    /**
-     * 401 - Mauvais identifiants
-     */
-    @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ApiError> handleBadCredentials(
-            BadCredentialsException ex,
-            HttpServletRequest request) {
-
-        log.warn("Tentative de connexion échouée : {}", ex.getMessage());
-
-        ApiError error = ApiError.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.UNAUTHORIZED.value())
-                .error("Unauthorized")
-                .message("Email ou mot de passe incorrect")
-                .path(request.getRequestURI())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-    }
-
-    /**
-     * 401 - Non authentifié
-     */
-    @ExceptionHandler(AuthenticationException.class)
-    public ResponseEntity<ApiError> handleAuthentication(
-            AuthenticationException ex,
-            HttpServletRequest request) {
-
-        ApiError error = ApiError.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.UNAUTHORIZED.value())
-                .error("Unauthorized")
-                .message("Authentification requise")
-                .path(request.getRequestURI())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
-    }
-
-    /**
-     * 403 - Accès refusé
-     */
-    @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ApiError> handleAccessDenied(
-            AccessDeniedException ex,
-            HttpServletRequest request) {
-
-        ApiError error = ApiError.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.FORBIDDEN.value())
-                .error("Forbidden")
-                .message("Vous n'avez pas les droits pour accéder à cette ressource")
-                .path(request.getRequestURI())
-                .build();
-
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
-    }
-
-    
 }
