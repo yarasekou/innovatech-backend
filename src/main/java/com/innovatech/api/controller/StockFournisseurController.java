@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -13,13 +14,14 @@ import java.util.List;
 @RestController
 @RequestMapping("/stocks-fournisseur")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
 @Tag(name = "Stocks fournisseur", description = "Stock des produits par fournisseur")
 public class StockFournisseurController {
 
     private final StockFournisseurService stockService;
 
     @GetMapping
-    @Operation(summary = "Liste tous les stocks fournisseur")
+    @Operation(summary = "Liste les stocks fournisseur accessibles")
     public ResponseEntity<List<StockFournisseurDTO>> getAll() {
         return ResponseEntity.ok(stockService.findAll());
     }

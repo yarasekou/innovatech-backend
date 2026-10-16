@@ -133,7 +133,6 @@ public class CategorieService {
         Categorie categorie = categorieRepository.findByIdWithEnfants(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Categorie", id));
 
-        // Vérifier appartenance
         if (categorie.getEntreprise() == null
                 || !categorie.getEntreprise().getId().equals(entreprise.getId())) {
             throw new ResourceNotFoundException("Categorie", id);
@@ -168,7 +167,7 @@ public class CategorieService {
         User shopOwner = userRepository.findById(shopOwnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
 
-        // Résoudre le parent (même entreprise + même boutique)
+        // Résoudre le parent
         Categorie parent = null;
         if (dto.getParentId() != null) {
             parent = categorieRepository
@@ -178,16 +177,14 @@ public class CategorieService {
                             "Categorie (parent)", dto.getParentId()));
         }
 
-        // Slug
-        String slug = dto.getSlug() != null && !dto.getSlug().isBlank()
-                ? dto.getSlug()
-                : genererSlug(dto.getNom());
-
-        if (categorieRepository.existsBySlugAndEntrepriseIdAndUserId(
-                slug, entreprise.getId(), shopOwnerId)) {
-            throw new BusinessException(
-                    "Vous avez déjà une catégorie avec le slug '" + slug + "'");
-        }
+        // ⚠️ Générer le slug unique par parent
+        String slug = genererSlugUnique(
+                dto.getNom(),
+                dto.getSlug(),
+                parent,
+                entreprise.getId(),
+                shopOwnerId
+        );
 
         int niveau = (parent == null) ? 1 : parent.getNiveau() + 1;
         String cheminComplet = (parent == null)
@@ -198,8 +195,8 @@ public class CategorieService {
                 dto, entreprise, shopOwner, parent, slug, niveau, cheminComplet);
 
         Categorie saved = categorieRepository.save(categorie);
-        log.info("Catégorie '{}' créée par {} pour la boutique de {} (entreprise: {})",
-                saved.getNom(), userEmail, shopOwner.getEmail(), entreprise.getNom());
+        log.info("Catégorie '{}' créée par {} pour la boutique de {} (entreprise: {}, slug: {})",
+                saved.getNom(), userEmail, shopOwner.getEmail(), entreprise.getNom(), saved.getSlug());
         return categorieMapper.toResponseDTO(saved);
     }
 
@@ -225,26 +222,57 @@ public class CategorieService {
                             dto.getParentId(), entreprise.getId(), shopOwnerId)
                     .orElseThrow(() -> new ResourceNotFoundException(
                             "Categorie (parent)", dto.getParentId()));
+
+            // Protection anti-cycle
+            if (parent.getCheminComplet() != null
+                    && existing.getCheminComplet() != null
+                    && parent.getCheminComplet().startsWith(existing.getCheminComplet() + " > ")) {
+                throw new BusinessException(
+                        "Impossible : le parent choisi est un descendant de cette catégorie (cycle)");
+            }
         }
 
-        String slug = dto.getSlug() != null && !dto.getSlug().isBlank()
-                ? dto.getSlug()
-                : genererSlug(dto.getNom());
+        // ⚠️ Générer le slug unique par parent (SAUF si le slug n'a pas changé)
+        String slug;
+        boolean slugChange = dto.getSlug() != null
+                && !dto.getSlug().isBlank()
+                && !dto.getSlug().equals(existing.getSlug());
 
-        if (!existing.getSlug().equals(slug)
-                && categorieRepository.existsBySlugAndEntrepriseIdAndUserId(
-                slug, entreprise.getId(), shopOwnerId)) {
-            throw new BusinessException(
-                    "Vous avez déjà une catégorie avec le slug '" + slug + "'");
+        boolean nomChange = !dto.getNom().equals(existing.getNom());
+        boolean parentChange = (existing.getParent() == null && parent != null)
+                || (existing.getParent() != null && parent == null)
+                || (existing.getParent() != null && parent != null
+                && !existing.getParent().getId().equals(parent.getId()));
+
+        if (nomChange || slugChange || parentChange) {
+            // On doit regénérer le slug
+            slug = genererSlugUnique(
+                    dto.getNom(),
+                    dto.getSlug(),
+                    parent,
+                    entreprise.getId(),
+                    shopOwnerId,
+                    existing.getId()   // ← exclure la catégorie courante de l'unicité
+            );
+        } else {
+            // Rien n'a changé → garder le slug existant
+            slug = existing.getSlug();
         }
 
         int niveau = (parent == null) ? 1 : parent.getNiveau() + 1;
-        String cheminComplet = (parent == null)
+        String ancienChemin = existing.getCheminComplet();
+        String nouveauChemin = (parent == null)
                 ? dto.getNom()
                 : parent.getCheminComplet() + " > " + dto.getNom();
 
-        categorieMapper.updateEntity(existing, dto, parent, slug, niveau, cheminComplet);
+        categorieMapper.updateEntity(existing, dto, parent, slug, niveau, nouveauChemin);
         Categorie updated = categorieRepository.save(existing);
+
+        // Recalculer les chemins des descendants
+        if (ancienChemin != null && !ancienChemin.equals(nouveauChemin)) {
+            recalculerCheminsDescendants(updated, ancienChemin, nouveauChemin);
+        }
+
         return categorieMapper.toResponseDTO(updated);
     }
 
@@ -319,6 +347,101 @@ public class CategorieService {
     // -----------------------------------------
     // MÉTHODES PRIVÉES
     // -----------------------------------------
+
+    /**
+     * Génère un slug unique **par parent**.
+     * <p>
+     * - Parent null  → slug simple (ex: "ordinateurs")
+     * - Parent XXX   → slug préfixé (ex: "ordinateurs-portables")
+     * <p>
+     * La vérification d'unicité se fait au niveau du parent :
+     * deux catégories "Dell" sous "Portables" et sous "Fixe" auront
+     * respectivement "portables-dell" et "fixe-dell".
+     */
+    private String genererSlugUnique(String nom,
+                                     String slugFourni,
+                                     Categorie parent,
+                                     Long entrepriseId,
+                                     Long userId) {
+        return genererSlugUnique(nom, slugFourni, parent, entrepriseId, userId, null);
+    }
+
+    private String genererSlugUnique(String nom,
+                                     String slugFourni,
+                                     Categorie parent,
+                                     Long entrepriseId,
+                                     Long userId,
+                                     Long excludeId) {
+
+        // Base : slug fourni ou généré depuis le nom
+        String baseSlug = (slugFourni != null && !slugFourni.isBlank())
+                ? slugFourni
+                : genererSlug(nom);
+
+        // Préfixe : slug du parent si présent
+        String slug;
+        if (parent == null) {
+            slug = baseSlug;
+        } else {
+            // ⚠️ Utilise le SLUG du parent (pas son nom) pour construire le chemin
+            // Ex: parent.slug = "ordinateurs-portables" → enfant = "ordinateurs-portables-dell"
+            slug = parent.getSlug() + "-" + baseSlug;
+        }
+
+        // Vérification d'unicité au niveau du parent
+        boolean exists;
+        if (parent == null) {
+            exists = categorieRepository
+                    .existsBySlugAndEntrepriseIdAndUserIdAndParentIsNull(
+                            slug, entrepriseId, userId);
+        } else {
+            exists = categorieRepository
+                    .existsBySlugAndEntrepriseIdAndUserIdAndParentId(
+                            slug, entrepriseId, userId, parent.getId());
+        }
+
+        // Si on modifie et que le slug trouvé est celui de la catégorie courante → OK
+        if (exists && excludeId != null) {
+            Categorie bySlug = categorieRepository
+                    .findBySlugAndEntrepriseIdAndUserId(slug, entrepriseId, userId)
+                    .orElse(null);
+            if (bySlug != null && bySlug.getId().equals(excludeId)) {
+                return slug;
+            }
+        }
+
+        if (exists) {
+            throw new BusinessException(
+                    "Une catégorie avec le slug '" + slug + "' existe déjà à cet emplacement.");
+        }
+
+        return slug;
+    }
+
+    /**
+     * Recalcule récursivement le chemin_complet de tous les descendants
+     * d'une catégorie après un renommage ou un changement de parent.
+     */
+    private void recalculerCheminsDescendants(Categorie parent,
+                                              String ancienChemin,
+                                              String nouveauChemin) {
+        List<Categorie> enfants = categorieRepository
+                .findByEntrepriseIdAndUserIdAndParentId(
+                        parent.getEntreprise().getId(),
+                        parent.getUser().getId(),
+                        parent.getId());
+
+        for (Categorie enfant : enfants) {
+            String cheminEnfant = ancienChemin + " > " + enfant.getNom();
+            String nouveauCheminEnfant = nouveauChemin + " > " + enfant.getNom();
+
+            enfant.setCheminComplet(nouveauCheminEnfant);
+            enfant.setNiveau(parent.getNiveau() + 1);
+            categorieRepository.save(enfant);
+
+            recalculerCheminsDescendants(enfant, cheminEnfant, nouveauCheminEnfant);
+        }
+    }
 
     private String genererSlug(String nom) {
         if (nom == null) return "categorie";

@@ -20,76 +20,68 @@ import java.util.List;
 @RestController
 @RequestMapping("/categories")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")   // ← SUPER_ADMIN exclu
 @Tag(name = "Catégories", description = "Catégories scopées par entreprise")
 public class CategorieController {
 
     private final CategorieService categorieService;
 
     // -----------------------------------------
-    // READ — accessible à tous les rôles "tenant"
+    // READ
     // -----------------------------------------
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<CategorieResponseDTO>> getAll() {
         return ResponseEntity.ok(categorieService.findAll());
     }
 
     @GetMapping("/racines")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<CategorieResponseDTO>> getRacines() {
         return ResponseEntity.ok(categorieService.findRacines());
     }
 
     @GetMapping("/tree")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<CategorieTreeDTO>> getTree() {
         return ResponseEntity.ok(categorieService.getTree());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<CategorieResponseDTO> getById(@PathVariable Long id) {
         return ResponseEntity.ok(categorieService.findById(id));
     }
 
     @GetMapping("/{id}/tree")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<CategorieTreeDTO> getTreeFrom(@PathVariable Long id) {
         return ResponseEntity.ok(categorieService.getTreeFrom(id));
     }
 
     @GetMapping("/{id}/children")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<CategorieResponseDTO>> getChildren(@PathVariable Long id) {
         return ResponseEntity.ok(categorieService.findByParent(id));
     }
 
     @GetMapping("/slug/{slug}")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<CategorieResponseDTO> getBySlug(@PathVariable String slug) {
         return ResponseEntity.ok(categorieService.findBySlug(slug));
     }
 
     @GetMapping("/feuilles")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<CategorieResponseDTO>> getFeuilles() {
         return ResponseEntity.ok(categorieService.findFeuilles());
     }
 
     @GetMapping("/{id}/feuilles")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN', 'ADMIN', 'USER', 'SELLER')")
     public ResponseEntity<List<CategorieResponseDTO>> getFeuillesDescendants(@PathVariable Long id) {
         return ResponseEntity.ok(categorieService.findFeuillesDescendants(id));
     }
 
     // -----------------------------------------
-    // CREATE — ADMIN + USER + SELLER
+    // CREATE — USER / SELLER
     // -----------------------------------------
 
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'SELLER')")
-    @Operation(summary = "Créer une catégorie dans mon entreprise")
+    @Operation(summary = "Créer une catégorie dans ma boutique")
     public ResponseEntity<CategorieResponseDTO> create(
             @Valid @RequestBody CategorieRequestDTO dto,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -99,7 +91,7 @@ public class CategorieController {
     }
 
     // -----------------------------------------
-    // UPDATE — ADMIN + USER + SELLER
+    // UPDATE — USER / SELLER
     // -----------------------------------------
 
     @PutMapping("/{id}")
@@ -111,7 +103,7 @@ public class CategorieController {
     }
 
     // -----------------------------------------
-    // DELETE — ADMIN + USER + SELLER
+    // DELETE — USER / SELLER
     // -----------------------------------------
 
     @DeleteMapping("/{id}")

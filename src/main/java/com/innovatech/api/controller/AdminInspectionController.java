@@ -11,15 +11,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * Endpoints d'inspection (supervision) pour les SUPER_ADMIN.
- * <p>
- * Permet à Yara (SUPER_ADMIN) de voir la boutique d'un ADMIN ou d'un USER
- * sans y être connecté.
- * <p>
- * ⚠️ Toutes les données renvoyées concernent l'ENTREPRISE du user ciblé
- * (toutes boutiques confondues).
- */
 @RestController
 @RequestMapping("/admin/users")
 @RequiredArgsConstructor
@@ -80,7 +71,7 @@ public class AdminInspectionController {
     }
 
     // -----------------------------------------
-    // 6. Fournisseurs
+    // 6. Fournisseurs  ← NOUVEAU
     // -----------------------------------------
 
     @GetMapping("/{userId}/fournisseurs")

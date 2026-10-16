@@ -147,4 +147,20 @@ public interface CategorieRepository extends JpaRepository<Categorie, Long> {
             @Param("userId") Long userId,
             @Param("chemin") String chemin
     );
+
+    // =========================================
+    // Vérifier l'unicité du slug au niveau du PARENT
+    // =========================================
+
+    /**
+     * Vérifie si un slug existe déjà à la racine (parent = null).
+     */
+    boolean existsBySlugAndEntrepriseIdAndUserIdAndParentIsNull(
+            String slug, Long entrepriseId, Long userId);
+
+    /**
+     * Vérifie si un slug existe déjà sous un parent donné.
+     */
+    boolean existsBySlugAndEntrepriseIdAndUserIdAndParentId(
+            String slug, Long entrepriseId, Long userId, Long parentId);
 }

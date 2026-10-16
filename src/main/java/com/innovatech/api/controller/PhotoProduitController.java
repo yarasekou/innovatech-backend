@@ -17,10 +17,15 @@ import java.util.List;
 @RestController
 @RequestMapping("/produits/{produitId}/photos")
 @RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")   // ← au niveau classe
 @Tag(name = "Photos de produit", description = "Gestion des photos de produits")
 public class PhotoProduitController {
 
     private final PhotoProduitService photoService;
+
+    // -----------------------------------------
+    // READ — ADMIN peut aussi consulter (utile pour supervision interne)
+    // -----------------------------------------
 
     @GetMapping
     @Operation(summary = "Liste les photos d'un produit")
@@ -28,8 +33,12 @@ public class PhotoProduitController {
         return ResponseEntity.ok(photoService.findByProduit(produitId));
     }
 
+    // -----------------------------------------
+    // CREATE — USER / SELLER (le service filtre déjà par boutique)
+    // -----------------------------------------
+
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     @Operation(summary = "Ajouter une photo à un produit")
     public ResponseEntity<PhotoProduitDTO> ajouter(
             @PathVariable Long produitId,
@@ -41,16 +50,24 @@ public class PhotoProduitController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
+    // -----------------------------------------
+    // UPDATE — USER / SELLER
+    // -----------------------------------------
+
     @PatchMapping("/{photoId}/principale")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     @Operation(summary = "Définir une photo comme principale")
     public ResponseEntity<PhotoProduitDTO> setPrincipale(@PathVariable Long produitId,
                                                          @PathVariable Long photoId) {
         return ResponseEntity.ok(photoService.setPrincipale(photoId));
     }
 
+    // -----------------------------------------
+    // DELETE — USER / SELLER
+    // -----------------------------------------
+
     @DeleteMapping("/{photoId}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'SELLER')")
     @Operation(summary = "Supprimer une photo")
     public ResponseEntity<Void> supprimer(@PathVariable Long produitId,
                                           @PathVariable Long photoId) {
