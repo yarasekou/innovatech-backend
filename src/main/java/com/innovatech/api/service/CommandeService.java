@@ -175,13 +175,6 @@ public class CommandeService {
                 throw new BusinessException("Le produit " + produit.getReference() + " est inactif");
             }
 
-            long nbPhotos = photoProduitRepository.countByProduitId(produit.getId());
-            if (nbPhotos == 0) {
-                throw new BusinessException(String.format(
-                        "Le produit '%s' n'a pas de photo. Ajoutez-en une avant de le vendre.",
-                        produit.getNom()));
-            }
-
             if (produit.getStock() < ligneDTO.getQuantite()) {
                 throw new BusinessException(String.format(
                         "Stock insuffisant pour %s : demandé %d, disponible %d",

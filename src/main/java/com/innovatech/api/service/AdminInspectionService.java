@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.innovatech.api.dto.FactureResponseDTO;
 
 import java.util.List;
 
@@ -50,6 +51,13 @@ public class AdminInspectionService {
 
     private final RetourRepository retourRepository;
     private final RetourMapper retourMapper;
+    private final CommandeAchatRepository commandeAchatRepository;
+    private final CommandeAchatMapper commandeAchatMapper;
+    private final FactureRepository factureRepository;
+    private final FactureMapper factureMapper;
+
+
+
     // -----------------------------------------
     // Résolution du user ciblé
     // -----------------------------------------
@@ -213,6 +221,31 @@ public class AdminInspectionService {
         return retourRepository.findByEntrepriseIdWithDetails(entrepriseId)
                 .stream()
                 .map(retourMapper::toResponseDTO)
+                .toList();
+    }
+
+    // -----------------------------------------
+    // 10. Commandes d'achat de l'entreprise
+    // -----------------------------------------
+
+    public List<CommandeAchatResponseDTO> getCommandesAchat(Long userId) {
+        User user = resolveTargetUser(userId);
+        Long entrepriseId = user.getEntreprise().getId();
+
+        return commandeAchatRepository.findByEntrepriseIdWithDetails(entrepriseId)
+                .stream()
+                .map(commandeAchatMapper::toResponseDTO)
+                .toList();
+    }
+
+    // Méthode
+    public List<FactureResponseDTO> getFactures(Long userId) {
+        User user = resolveTargetUser(userId);
+        Long entrepriseId = user.getEntreprise().getId();
+
+        return factureRepository.findByEntrepriseIdWithDetails(entrepriseId)
+                .stream()
+                .map(factureMapper::toResponseDTO)
                 .toList();
     }
 }
