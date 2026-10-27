@@ -3,15 +3,20 @@ package com.innovatech.api.controller;
 import com.innovatech.api.dto.FactureRequestDTO;
 import com.innovatech.api.dto.FactureResponseDTO;
 import com.innovatech.api.service.FactureService;
+import com.innovatech.api.service.PdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.ByteArrayInputStream;
 import java.util.List;
 
 @RestController
@@ -21,6 +26,8 @@ import java.util.List;
 public class FactureController {
 
     private final FactureService factureService;
+    private final PdfService pdfService;
+
 
     // -----------------------------------------
     // READ
@@ -107,5 +114,26 @@ public class FactureController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         factureService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+
+    @GetMapping("/{id}/pdf")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Télécharger la facture en PDF")
+    public ResponseEntity<InputStreamResource> downloadPdf(@PathVariable Long id) {
+        // On délègue tout au service (qui gère la transaction)
+        ByteArrayInputStream bis = factureService.generatePdf(id);
+
+        // On récupère juste le numéro pour nommer le fichier
+        FactureResponseDTO factureDto = factureService.findById(id);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Content-Disposition", "inline; filename=facture-" + factureDto.getNumero() + ".pdf");
+
+        return ResponseEntity
+                .ok()
+                .headers(headers)
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(new InputStreamResource(bis));
     }
 }

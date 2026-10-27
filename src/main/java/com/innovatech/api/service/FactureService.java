@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.ByteArrayInputStream;
 import java.time.LocalDate;
 import java.time.Year;
 import java.util.List;
@@ -32,6 +33,7 @@ public class FactureService {
     private final CommandeAchatRepository commandeAchatRepository; // ⚠️ NOUVEAU
     private final UserRepository userRepository;
     private final FactureMapper factureMapper;
+    private final PdfService pdfService;
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
             "BROUILLON->EMISE",
@@ -340,5 +342,33 @@ public class FactureService {
         }
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User introuvable avec l'email : " + email));
+    }
+
+    public Facture findEntityById(Long id) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return factureRepository.findByIdAndEntrepriseIdWithDetails(id, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Facture", id));
+        }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return factureRepository.findByIdAndEntrepriseIdAndUserIdWithDetails(id, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("Facture", id));
+    }
+
+    /**
+     * Génère le PDF de la facture.
+     * Doit être appelé DANS une transaction pour éviter le LazyInitializationException.
+     */
+    public ByteArrayInputStream generatePdf(Long id) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        // On récupère l'entité Facture avec toutes ses relations chargées (JOIN FETCH)
+        Facture facture = findFactureSecurise(id);
+
+        // On génère le PDF ici (la session Hibernate est ouverte)
+        return pdfService.generateFacturePdf(facture);
     }
 }
