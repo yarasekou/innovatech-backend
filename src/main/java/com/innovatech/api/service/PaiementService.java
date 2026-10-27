@@ -7,6 +7,7 @@ import com.innovatech.api.entity.*;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.PaiementMapper;
+import com.innovatech.api.repository.CommandeAchatRepository;
 import com.innovatech.api.repository.CommandeRepository;
 import com.innovatech.api.repository.PaiementRepository;
 import com.innovatech.api.repository.UserRepository;
@@ -32,6 +33,8 @@ public class PaiementService {
     private final CommandeRepository commandeRepository;
     private final PaiementMapper paiementMapper;
     private final UserRepository userRepository;
+    private final CommandeAchatRepository commandeAchatRepository;
+
 
     private static final Set<String> TRANSITIONS_AUTORISEES = Set.of(
             "EN_ATTENTE->VALIDE",
@@ -132,39 +135,60 @@ public class PaiementService {
     public PaiementResponseDTO create(PaiementRequestDTO dto, String userEmail) {
         User user = getCurrentUser();
         Entreprise entreprise = getCurrentEntreprise(user);
-
-        if (user.hasRole(Role.ROLE_ADMIN)) {
-            throw new BusinessException(
-                    "Un ADMIN ne crée pas de paiements. Créez un USER pour cela.");
-        }
-
-        Commande commande = findMyCommande(user, entreprise, dto.getCommandeId());
-
-        if (commande.getStatut() == StatutCommande.ANNULEE) {
-            throw new BusinessException("Impossible de payer une commande annulée");
-        }
-
-        ResteAPayerDTO solde = calculerReste(commande);
-        if (dto.getMontant().compareTo(solde.getResteAPayer()) > 0) {
-            throw new BusinessException(String.format(
-                    "Montant trop élevé. Reste à payer : %.2f, montant demandé : %.2f",
-                    solde.getResteAPayer(), dto.getMontant()));
-        }
-
         Long shopOwnerId = resolveShopOwnerId(user);
+
         User shopOwner = userRepository.findById(shopOwnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
 
-        Paiement paiement = paiementMapper.toEntity(dto, commande, entreprise, shopOwner);
-        paiement.setNumero(genererNumero(entreprise.getId(), shopOwnerId));
+        Paiement paiement;
+
+        // CAS 1 : Paiement pour un ACHAT (fournisseur)
+        if (dto.getCommandeAchatId() != null) {
+            CommandeAchat achat = commandeAchatRepository
+                    .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                            dto.getCommandeAchatId(), entreprise.getId(), shopOwnerId)
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", dto.getCommandeAchatId()));
+
+            if (achat.getStatut() == StatutAchat.ANNULEE) {
+                throw new BusinessException("Impossible de payer une commande d'achat annulée");
+            }
+
+            paiement = paiementMapper.toEntityAchat(dto, achat, entreprise, shopOwner);
+            paiement.setNumero(genererNumeroAchat(entreprise.getId(), shopOwnerId));
+        }
+        // CAS 2 : Paiement pour une VENTE (client)
+        else {
+            if (dto.getCommandeId() == null) {
+                throw new BusinessException("Il faut fournir commandeId ou commandeAchatId");
+            }
+
+            Commande commande = findMyCommande(user, entreprise, dto.getCommandeId());
+
+            if (commande.getStatut() == StatutCommande.ANNULEE) {
+                throw new BusinessException("Impossible de payer une commande annulée");
+            }
+
+            ResteAPayerDTO solde = calculerReste(commande);
+            if (dto.getMontant().compareTo(solde.getResteAPayer()) > 0) {
+                throw new BusinessException(String.format(
+                        "Montant trop élevé. Reste à payer : %.2f", solde.getResteAPayer()));
+            }
+
+            paiement = paiementMapper.toEntity(dto, commande, entreprise, shopOwner);
+            paiement.setNumero(genererNumero(entreprise.getId(), shopOwnerId));
+        }
+
         paiement.setStatut(StatutPaiement.VALIDE);
         paiement.setDatePaiement(LocalDateTime.now());
 
         Paiement saved = paiementRepository.save(paiement);
-        log.info("Paiement {} créé par {} pour la commande {}",
-                saved.getNumero(), userEmail, commande.getNumero());
+        log.info("Paiement {} créé par {}", saved.getNumero(), userEmail);
 
-        mettreAJourStatutCommandeSiPayee(commande);
+        // Mise à jour du statut de la commande client si totalement payée
+        if (paiement.getCommande() != null) {
+            mettreAJourStatutCommandeSiPayee(paiement.getCommande());
+        }
+
         return paiementMapper.toResponseDTO(saved);
     }
 
@@ -313,5 +337,27 @@ public class PaiementService {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "User introuvable avec l'email : " + email));
+    }
+
+    private String genererNumeroAchat(Long entrepriseId, Long userId) {
+        int annee = Year.now().getValue();
+        long count = paiementRepository.countByAnneeAndEntrepriseIdAndUserId(annee, entrepriseId, userId);
+        return String.format("PAY-ACH-%d-%04d", annee, count + 1);
+    }
+
+    public List<PaiementResponseDTO> findByCommandeAchat(Long commandeAchatId) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+        Long shopOwnerId = resolveShopOwnerId(user);
+
+        // Vérification de sécurité (l'achat appartient à l'entreprise/boutique)
+        CommandeAchat achat = commandeAchatRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(commandeAchatId, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", commandeAchatId));
+
+        return paiementRepository.findByCommandeAchatIdWithDetails(achat.getId())
+                .stream()
+                .map(paiementMapper::toResponseDTO)
+                .toList();
     }
 }

@@ -6,6 +6,7 @@ import com.innovatech.api.entity.*;
 import com.innovatech.api.exception.BusinessException;
 import com.innovatech.api.exception.ResourceNotFoundException;
 import com.innovatech.api.mapper.FactureMapper;
+import com.innovatech.api.repository.CommandeAchatRepository;
 import com.innovatech.api.repository.CommandeRepository;
 import com.innovatech.api.repository.FactureRepository;
 import com.innovatech.api.repository.UserRepository;
@@ -28,6 +29,7 @@ public class FactureService {
 
     private final FactureRepository factureRepository;
     private final CommandeRepository commandeRepository;
+    private final CommandeAchatRepository commandeAchatRepository; // ⚠️ NOUVEAU
     private final UserRepository userRepository;
     private final FactureMapper factureMapper;
 
@@ -93,6 +95,19 @@ public class FactureService {
         return factureMapper.toResponseDTO(facture);
     }
 
+    // ⚠️ NOUVEAU : Par commande d'achat
+    public FactureResponseDTO findByCommandeAchat(Long commandeAchatId) {
+        User user = getCurrentUser();
+        Entreprise entreprise = getCurrentEntreprise(user);
+
+        CommandeAchat commandeAchat = findMyCommandeAchat(user, entreprise, commandeAchatId);
+
+        Facture facture = factureRepository.findByCommandeAchatId(commandeAchat.getId())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Aucune facture pour la commande d'achat " + commandeAchatId));
+        return factureMapper.toResponseDTO(facture);
+    }
+
     // -----------------------------------------
     // CREATE
     // -----------------------------------------
@@ -106,33 +121,54 @@ public class FactureService {
             throw new BusinessException("Un ADMIN ne crée pas de factures");
         }
 
-        Commande commande = findMyCommande(user, entreprise, dto.getCommandeId());
-
-        if (commande.getStatut() != StatutCommande.LIVREE) {
-            throw new BusinessException("Seule une commande LIVREE peut être facturée");
-        }
-
-        if (factureRepository.existsByCommandeId(dto.getCommandeId())) {
-            throw new BusinessException(
-                    "Une facture existe déjà pour la commande " + commande.getNumero());
-        }
-
         Long shopOwnerId = resolveShopOwnerId(user);
         User shopOwner = userRepository.findById(shopOwnerId)
                 .orElseThrow(() -> new ResourceNotFoundException("User (boutique)", shopOwnerId));
 
-        LocalDate emission = dto.getDateEmission() != null
-                ? dto.getDateEmission()
-                : LocalDate.now();
+        LocalDate emission = dto.getDateEmission() != null ? dto.getDateEmission() : LocalDate.now();
+        Facture facture;
 
-        Facture facture = factureMapper.toEntity(
-                commande, entreprise, shopOwner,
-                genererNumero(entreprise.getId(), shopOwnerId),
-                emission, dto.getNotes());
+        // CAS 1 : FACTURE POUR UN ACHAT
+        if (dto.getCommandeAchatId() != null) {
+            CommandeAchat achat = findMyCommandeAchat(user, entreprise, dto.getCommandeAchatId());
+
+            if (achat.getStatut() != StatutAchat.RECUE) {
+                throw new BusinessException("Seule une commande d'achat REÇUE peut être facturée");
+            }
+
+            if (factureRepository.existsByCommandeAchatId(dto.getCommandeAchatId())) {
+                throw new BusinessException("Une facture existe déjà pour cette commande d'achat");
+            }
+
+            facture = factureMapper.toEntityAchat(
+                    achat, entreprise, shopOwner,
+                    genererNumeroAchat(entreprise.getId(), shopOwnerId),
+                    emission, dto.getNotes());
+        }
+        // CAS 2 : FACTURE POUR UNE VENTE
+        else {
+            if (dto.getCommandeId() == null) {
+                throw new BusinessException("Il faut fournir commandeId ou commandeAchatId");
+            }
+
+            Commande commande = findMyCommande(user, entreprise, dto.getCommandeId());
+
+            if (commande.getStatut() != StatutCommande.LIVREE) {
+                throw new BusinessException("Seule une commande LIVREE peut être facturée");
+            }
+
+            if (factureRepository.existsByCommandeId(dto.getCommandeId())) {
+                throw new BusinessException("Une facture existe déjà pour cette commande");
+            }
+
+            facture = factureMapper.toEntity(
+                    commande, entreprise, shopOwner,
+                    genererNumero(entreprise.getId(), shopOwnerId),
+                    emission, dto.getNotes());
+        }
 
         Facture saved = factureRepository.save(facture);
-        log.info("Facture {} créée pour la commande {}",
-                saved.getNumero(), commande.getNumero());
+        log.info("Facture {} créée", saved.getNumero());
         return factureMapper.toResponseDTO(saved);
     }
 
@@ -152,7 +188,6 @@ public class FactureService {
         facture.setPdfUrl("/api/factures/" + id + "/pdf");
 
         Facture updated = factureRepository.save(facture);
-        log.info("Facture {} émise", facture.getNumero());
         return factureMapper.toResponseDTO(updated);
     }
 
@@ -174,7 +209,6 @@ public class FactureService {
         facture.setDatePaiement(LocalDate.now());
 
         Facture updated = factureRepository.save(facture);
-        log.info("Facture {} marquée PAYEE", facture.getNumero());
         return factureMapper.toResponseDTO(updated);
     }
 
@@ -191,7 +225,6 @@ public class FactureService {
 
         facture.setStatut(StatutFacture.ANNULEE);
         Facture updated = factureRepository.save(facture);
-        log.info("Facture {} annulée", facture.getNumero());
         return factureMapper.toResponseDTO(updated);
     }
 
@@ -206,7 +239,6 @@ public class FactureService {
             f.setStatut(StatutFacture.EN_RETARD);
         }
         factureRepository.saveAll(enRetard);
-        log.info("{} facture(s) passée(s) en EN_RETARD", enRetard.size());
         return enRetard.size();
     }
 
@@ -219,8 +251,7 @@ public class FactureService {
         Facture facture = findFactureSecurise(id);
 
         if (facture.getStatut() != StatutFacture.BROUILLON) {
-            throw new BusinessException(
-                    "Seule une facture BROUILLON peut être supprimée");
+            throw new BusinessException("Seule une facture BROUILLON peut être supprimée");
         }
 
         factureRepository.delete(facture);
@@ -259,11 +290,30 @@ public class FactureService {
                 .orElseThrow(() -> new ResourceNotFoundException("Commande", commandeId));
     }
 
+    // ⚠️ NOUVEAU
+    private CommandeAchat findMyCommandeAchat(User user, Entreprise entreprise, Long commandeAchatId) {
+        if (user.hasRole(Role.ROLE_ADMIN)) {
+            return commandeAchatRepository
+                    .findByIdAndEntrepriseIdWithDetails(commandeAchatId, entreprise.getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", commandeAchatId));
+        }
+        Long shopOwnerId = resolveShopOwnerId(user);
+        return commandeAchatRepository
+                .findByIdAndEntrepriseIdAndUserIdWithDetails(
+                        commandeAchatId, entreprise.getId(), shopOwnerId)
+                .orElseThrow(() -> new ResourceNotFoundException("CommandeAchat", commandeAchatId));
+    }
+
     private String genererNumero(Long entrepriseId, Long userId) {
         int annee = Year.now().getValue();
-        long count = factureRepository.countByAnneeAndEntrepriseIdAndUserId(
-                annee, entrepriseId, userId);
+        long count = factureRepository.countByAnneeAndEntrepriseIdAndUserId(annee, entrepriseId, userId);
         return String.format("FAC-%d-%04d", annee, count + 1);
+    }
+
+    private String genererNumeroAchat(Long entrepriseId, Long userId) {
+        int annee = Year.now().getValue();
+        long count = factureRepository.countByAnneeAndEntrepriseIdAndUserId(annee, entrepriseId, userId);
+        return String.format("FAC-ACH-%d-%04d", annee, count + 1);
     }
 
     private Long resolveShopOwnerId(User user) {
@@ -278,8 +328,7 @@ public class FactureService {
 
     private Entreprise getCurrentEntreprise(User user) {
         if (user.getEntreprise() == null) {
-            throw new BusinessException(
-                    "Aucune entreprise associée. Contactez votre administrateur.");
+            throw new BusinessException("Aucune entreprise associée. Contactez votre administrateur.");
         }
         return user.getEntreprise();
     }
@@ -290,7 +339,6 @@ public class FactureService {
             throw new BusinessException("Utilisateur non authentifié");
         }
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "User introuvable avec l'email : " + email));
+                .orElseThrow(() -> new ResourceNotFoundException("User introuvable avec l'email : " + email));
     }
 }

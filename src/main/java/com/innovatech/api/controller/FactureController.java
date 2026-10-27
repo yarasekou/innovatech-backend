@@ -40,9 +40,17 @@ public class FactureController {
 
     @GetMapping("/commande/{commandeId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
-    @Operation(summary = "Facture liée à une commande")
+    @Operation(summary = "Facture liée à une commande client")
     public ResponseEntity<FactureResponseDTO> getByCommande(@PathVariable Long commandeId) {
         return ResponseEntity.ok(factureService.findByCommande(commandeId));
+    }
+
+    // ⚠️ NOUVEAU : Pour les achats
+    @GetMapping("/commande-achat/{commandeAchatId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Facture liée à une commande d'achat")
+    public ResponseEntity<FactureResponseDTO> getByCommandeAchat(@PathVariable Long commandeAchatId) {
+        return ResponseEntity.ok(factureService.findByCommandeAchat(commandeAchatId));
     }
 
     // -----------------------------------------
@@ -51,7 +59,7 @@ public class FactureController {
 
     @PostMapping
     @PreAuthorize("hasAnyRole('USER', 'SELLER')")
-    @Operation(summary = "Créer une facture BROUILLON pour une commande LIVREE")
+    @Operation(summary = "Créer une facture BROUILLON")
     public ResponseEntity<FactureResponseDTO> create(@Valid @RequestBody FactureRequestDTO dto) {
         FactureResponseDTO created = factureService.create(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);

@@ -125,4 +125,11 @@ public interface PaiementRepository extends JpaRepository<Paiement, Long> {
     long countByEntrepriseId(Long entrepriseId);
     long countByEntrepriseIdAndUserId(Long entrepriseId, Long userId);
     long countByCommandeId(Long commandeId);
+
+    @Query("SELECT p FROM Paiement p " +
+            "JOIN FETCH p.commandeAchat " +
+            "JOIN FETCH p.user " +
+            "WHERE p.commandeAchat.id = :commandeAchatId " +
+            "ORDER BY p.datePaiement DESC")
+    List<Paiement> findByCommandeAchatIdWithDetails(@Param("commandeAchatId") Long commandeAchatId);
 }

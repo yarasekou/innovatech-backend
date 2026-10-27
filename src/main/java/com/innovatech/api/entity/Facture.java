@@ -11,9 +11,9 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 /**
- * Facture émise pour une commande client.
+ * Facture émise pour une commande client OU une commande d'achat.
  * <p>
- * Contient un snapshot des informations client + montants.
+ * Contient un snapshot des informations client/fournisseur + montants.
  * Scopée par entreprise ET par boutique (user).
  */
 @Entity
@@ -27,6 +27,10 @@ import java.time.LocalDateTime;
                 @UniqueConstraint(
                         name = "uk_facture_commande",
                         columnNames = "commande_id"
+                ),
+                @UniqueConstraint(
+                        name = "uk_facture_commande_achat",
+                        columnNames = "commande_achat_id"
                 )
         },
         indexes = {
@@ -44,7 +48,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"commande", "client", "entreprise", "user"})
+@ToString(exclude = {"commande", "commandeAchat", "client", "entreprise", "user"})
 public class Facture {
 
     @Id
@@ -74,24 +78,32 @@ public class Facture {
     )
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // ⚠️ COMMANDE CLIENT (Rendue optionnelle pour permettre les achats)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "commande_id",
-            nullable = false,
             foreignKey = @ForeignKey(name = "fk_facture_commande")
     )
     private Commande commande;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // ⚠️ COMMANDE ACHAT (Nouvelle relation)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "commande_achat_id",
+            foreignKey = @ForeignKey(name = "fk_facture_commande_achat")
+    )
+    private CommandeAchat commandeAchat;
+
+    // ⚠️ CLIENT (Rendu optionnel car un achat a un Fournisseur, pas un Client)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "client_id",
-            nullable = false,
             foreignKey = @ForeignKey(name = "fk_facture_client")
     )
     private Client client;
 
     // -----------------------------------------
-    // Snapshot client (figé à l'émission)
+    // Snapshot client/fournisseur (figé à l'émission)
     // -----------------------------------------
 
     @Column(name = "client_nom", nullable = false, length = 200)

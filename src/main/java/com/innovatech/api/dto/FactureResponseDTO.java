@@ -20,6 +20,10 @@ public class FactureResponseDTO {
     private Long commandeId;
     private String commandeNumero;
 
+    // ⚠️ NOUVEAU : Pour les achats
+    private Long commandeAchatId;
+    private String commandeAchatNumero;
+
     private Long clientId;
     private String clientNom;
     private String clientAdresse;

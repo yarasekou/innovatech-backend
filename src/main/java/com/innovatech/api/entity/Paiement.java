@@ -9,12 +9,6 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * Paiement reçu pour une commande.
- * <p>
- * Scopé par entreprise ET par boutique (user).
- * Le numéro est unique par (entreprise_id, user_id).
- */
 @Entity
 @Table(
         name = "paiements",
@@ -26,6 +20,7 @@ import java.time.LocalDateTime;
         },
         indexes = {
                 @Index(name = "idx_paiement_commande", columnList = "commande_id"),
+                @Index(name = "idx_paiement_commande_achat", columnList = "commande_achat_id"), // ⚠️ NOUVEAU
                 @Index(name = "idx_paiement_statut", columnList = "statut"),
                 @Index(name = "idx_paiement_date", columnList = "date_paiement"),
                 @Index(name = "idx_paiement_entreprise", columnList = "entreprise_id"),
@@ -38,7 +33,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"commande", "user", "entreprise"})
+@ToString(exclude = {"commande", "commandeAchat", "user", "entreprise"})
 public class Paiement {
 
     @Id
@@ -49,7 +44,7 @@ public class Paiement {
     private String numero;
 
     // -----------------------------------------
-    // Relations obligatoires
+    // Relations
     // -----------------------------------------
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -68,13 +63,21 @@ public class Paiement {
     )
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    // ⚠️ COMMANDE CLIENT (Rendue optionnelle)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "commande_id",
-            nullable = false,
             foreignKey = @ForeignKey(name = "fk_paiement_commande")
     )
     private Commande commande;
+
+    // ⚠️ COMMANDE ACHAT (Nouvelle relation)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "commande_achat_id",
+            foreignKey = @ForeignKey(name = "fk_paiement_commande_achat")
+    )
+    private CommandeAchat commandeAchat;
 
     // -----------------------------------------
     // Données du paiement

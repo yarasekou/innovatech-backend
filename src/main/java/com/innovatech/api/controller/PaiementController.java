@@ -101,4 +101,11 @@ public class PaiementController {
         paiementService.delete(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/achat/{commandeAchatId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER', 'SELLER')")
+    @Operation(summary = "Paiements d'une commande d'achat")
+    public ResponseEntity<List<PaiementResponseDTO>> getByCommandeAchat(@PathVariable Long commandeAchatId) {
+        return ResponseEntity.ok(paiementService.findByCommandeAchat(commandeAchatId));
+    }
 }

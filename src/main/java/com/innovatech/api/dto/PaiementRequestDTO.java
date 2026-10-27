@@ -12,10 +12,6 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 @Builder
 public class PaiementRequestDTO {
-
-    @NotNull(message = "L'identifiant de la commande est obligatoire")
-    private Long commandeId;
-
     @NotNull(message = "Le montant est obligatoire")
     @DecimalMin(value = "0.01", message = "Le montant doit être supérieur à 0")
     @Digits(integer = 10, fraction = 2, message = "Format du montant invalide")
@@ -29,4 +25,7 @@ public class PaiementRequestDTO {
 
     @Size(max = 500, message = "Les notes ne doivent pas dépasser 500 caractères")
     private String notes;
+
+    private Long commandeId;
+    private Long commandeAchatId;
 }

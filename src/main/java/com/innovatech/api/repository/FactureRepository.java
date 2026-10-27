@@ -32,24 +32,28 @@ public interface FactureRepository extends JpaRepository<Facture, Long> {
     // -----------------------------------------
 
     Optional<Facture> findByCommandeId(Long commandeId);
-
     boolean existsByCommandeId(Long commandeId);
+
+    Optional<Facture> findByCommandeAchatId(Long commandeAchatId);
+    boolean existsByCommandeAchatId(Long commandeAchatId);
 
     // -----------------------------------------
     // Par entreprise (ADMIN)
     // -----------------------------------------
 
     @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande " +
-            "JOIN FETCH f.client " +
+            "LEFT JOIN FETCH f.commande " +
+            "LEFT JOIN FETCH f.commandeAchat " +
+            "LEFT JOIN FETCH f.client " +      // ⚠️ FIX : LEFT JOIN
             "JOIN FETCH f.user " +
             "WHERE f.entreprise.id = :entrepriseId " +
             "ORDER BY f.dateEmission DESC")
     List<Facture> findByEntrepriseIdWithDetails(@Param("entrepriseId") Long entrepriseId);
 
     @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande " +
-            "JOIN FETCH f.client " +
+            "LEFT JOIN FETCH f.commande " +
+            "LEFT JOIN FETCH f.commandeAchat " +
+            "LEFT JOIN FETCH f.client " +      // ⚠️ FIX : LEFT JOIN
             "JOIN FETCH f.user " +
             "WHERE f.id = :id AND f.entreprise.id = :entrepriseId")
     Optional<Facture> findByIdAndEntrepriseIdWithDetails(
@@ -61,8 +65,9 @@ public interface FactureRepository extends JpaRepository<Facture, Long> {
     // -----------------------------------------
 
     @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande " +
-            "JOIN FETCH f.client " +
+            "LEFT JOIN FETCH f.commande " +
+            "LEFT JOIN FETCH f.commandeAchat " +
+            "LEFT JOIN FETCH f.client " +      // ⚠️ FIX : LEFT JOIN
             "JOIN FETCH f.user " +
             "WHERE f.entreprise.id = :entrepriseId " +
             "AND f.user.id = :userId " +
@@ -72,8 +77,9 @@ public interface FactureRepository extends JpaRepository<Facture, Long> {
             @Param("userId") Long userId);
 
     @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande " +
-            "JOIN FETCH f.client " +
+            "LEFT JOIN FETCH f.commande " +
+            "LEFT JOIN FETCH f.commandeAchat " +
+            "LEFT JOIN FETCH f.client " +      // ⚠️ FIX : LEFT JOIN
             "JOIN FETCH f.user " +
             "WHERE f.id = :id " +
             "AND f.entreprise.id = :entrepriseId " +
@@ -88,8 +94,9 @@ public interface FactureRepository extends JpaRepository<Facture, Long> {
     // -----------------------------------------
 
     @Query("SELECT f FROM Facture f " +
-            "JOIN FETCH f.commande " +
-            "JOIN FETCH f.client " +
+            "LEFT JOIN FETCH f.commande " +
+            "LEFT JOIN FETCH f.commandeAchat " +
+            "LEFT JOIN FETCH f.client " +      // ⚠️ FIX : LEFT JOIN
             "JOIN FETCH f.user " +
             "WHERE f.id = :id")
     Optional<Facture> findByIdWithDetails(@Param("id") Long id);

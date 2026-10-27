@@ -16,8 +16,14 @@ public class PaiementResponseDTO {
 
     private Long id;
     private String numero;
+
     private Long commandeId;
     private String commandeNumero;
+
+    // ⚠️ NOUVEAU
+    private Long commandeAchatId;
+    private String commandeAchatNumero;
+
     private BigDecimal montant;
     private MethodePaiement methode;
     private String methodeLibelle;
@@ -29,11 +35,9 @@ public class PaiementResponseDTO {
     private LocalDateTime dateCreation;
     private LocalDateTime dateModification;
 
-    // Entreprise
     private Long entrepriseId;
     private String entrepriseNom;
 
-    // User (boutique)
     private Long userId;
     private String userEmail;
     private String userNom;

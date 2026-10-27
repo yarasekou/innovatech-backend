@@ -9,15 +9,8 @@ import java.time.LocalDate;
 @Component
 public class FactureMapper {
 
-    /**
-     * Crée une facture à partir d'une commande, en figeant les données.
-     */
-    public Facture toEntity(Commande commande,
-                            Entreprise entreprise,
-                            User user,
-                            String numero,
-                            LocalDate dateEmission,
-                            String notes) {
+    // Pour une commande client
+    public Facture toEntity(Commande commande, Entreprise entreprise, User user, String numero, LocalDate dateEmission, String notes) {
         if (commande == null) return null;
 
         Client client = commande.getClient();
@@ -30,20 +23,43 @@ public class FactureMapper {
                 .user(user)
                 .commande(commande)
                 .client(client)
-                // Snapshot client
                 .clientNom(client.getPrenom() + " " + client.getNom())
                 .clientAdresse(buildAdresse(client))
                 .clientSiret(client.getSiret())
                 .clientEmail(client.getEmail())
                 .clientTelephone(client.getTelephone())
-                // Snapshot montants
                 .totalHT(commande.getTotalHT())
                 .tvaPercent(commande.getTvaPercent())
                 .totalTTC(commande.getTotalTTC())
-                // Dates
                 .dateEmission(emission)
                 .dateEcheance(echeance)
-                // Statut
+                .statut(StatutFacture.BROUILLON)
+                .notes(notes)
+                .build();
+    }
+
+    // ⚠️ NOUVEAU : Pour une commande d'achat
+    public Facture toEntityAchat(CommandeAchat commandeAchat, Entreprise entreprise, User user, String numero, LocalDate dateEmission, String notes) {
+        if (commandeAchat == null) return null;
+
+        Fournisseur fournisseur = commandeAchat.getFournisseur();
+        LocalDate emission = dateEmission != null ? dateEmission : LocalDate.now();
+        LocalDate echeance = emission.plusDays(30);
+
+        return Facture.builder()
+                .numero(numero)
+                .entreprise(entreprise)
+                .user(user)
+                .commandeAchat(commandeAchat)
+                .clientNom(fournisseur.getNom()) // On utilise les champs client pour stocker le fournisseur
+                .clientAdresse(fournisseur.getAdresse())
+                .clientEmail(fournisseur.getEmail())
+                .clientTelephone(fournisseur.getTelephone())
+                .totalHT(commandeAchat.getTotalHT())
+                .tvaPercent(commandeAchat.getTvaPercent())
+                .totalTTC(commandeAchat.getTotalTTC())
+                .dateEmission(emission)
+                .dateEcheance(echeance)
                 .statut(StatutFacture.BROUILLON)
                 .notes(notes)
                 .build();
@@ -55,7 +71,6 @@ public class FactureMapper {
         FactureResponseDTO.FactureResponseDTOBuilder builder = FactureResponseDTO.builder()
                 .id(entity.getId())
                 .numero(entity.getNumero())
-                .clientId(entity.getClient() != null ? entity.getClient().getId() : null)
                 .clientNom(entity.getClientNom())
                 .clientAdresse(entity.getClientAdresse())
                 .clientSiret(entity.getClientSiret())
@@ -76,9 +91,19 @@ public class FactureMapper {
                 .dateCreation(entity.getDateCreation())
                 .dateModification(entity.getDateModification());
 
+        if (entity.getClient() != null) {
+            builder.clientId(entity.getClient().getId());
+        }
+
         if (entity.getCommande() != null) {
             builder.commandeId(entity.getCommande().getId())
                     .commandeNumero(entity.getCommande().getNumero());
+        }
+
+        // ⚠️ NOUVEAU
+        if (entity.getCommandeAchat() != null) {
+            builder.commandeAchatId(entity.getCommandeAchat().getId())
+                    .commandeAchatNumero(entity.getCommandeAchat().getNumero());
         }
 
         if (entity.getEntreprise() != null) {
