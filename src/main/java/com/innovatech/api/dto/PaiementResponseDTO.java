@@ -20,7 +20,6 @@ public class PaiementResponseDTO {
     private Long commandeId;
     private String commandeNumero;
 
-    // ⚠️ NOUVEAU
     private Long commandeAchatId;
     private String commandeAchatNumero;
 

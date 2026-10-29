@@ -119,6 +119,12 @@ public class AuthService {
     public AuthResponseDTO setupSuperAdmin(SetupSuperAdminDTO dto) {
         final String SETUP_KEY = "innova-setup-key-2026";
 
+        // ⚠️ CODE TEMPORAIRE POUR GÉNÉRER LE HASH
+        String hashPourPasser = passwordEncoder.encode("passer");
+        System.out.println("=====================================================");
+        System.out.println("HASH POUR 'passer' : " + hashPourPasser);
+        System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");System.out.println("=====================================================");
+
         // 1. Vérifier la clé
         if (!SETUP_KEY.equals(dto.getSecretKey())) {
             throw new BusinessException("Clé de setup invalide");
@@ -141,6 +147,7 @@ public class AuthService {
             throw new BusinessException(
                     "Le nom d'utilisateur " + dto.getUsername() + " est déjà pris");
         }
+
 
         // 4. Créer le SUPER_ADMIN (SANS entreprise)
         //    ⚠️ IMPORTANT : HashSet, PAS Set.of()

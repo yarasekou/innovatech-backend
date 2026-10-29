@@ -216,4 +216,7 @@ public interface CommandeRepository extends JpaRepository<Commande, Long> {
             "GROUP BY YEAR(c.dateCommande), MONTH(c.dateCommande) " +
             "ORDER BY YEAR(c.dateCommande) ASC, MONTH(c.dateCommande) ASC")
     List<Object[]> findChiffreAffairesMensuel(@Param("entrepriseId") Long entrepriseId, @Param("shopOwnerId") Long shopOwnerId, @Param("dateDebut") LocalDateTime dateDebut, @Param("dateFin") LocalDateTime dateFin);
+
+    @Query("SELECT COALESCE(SUM(c.totalTTC), 0) FROM Commande c WHERE c.statut <> 'ANNULEE'")
+    BigDecimal sumGlobalTotalTTC();
 }

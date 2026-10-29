@@ -33,6 +33,7 @@ public class DashboardService {
     private final PaiementRepository paiementRepository;
     private final CommandeAchatRepository commandeAchatRepository;
     private final UserRepository userRepository;
+    private final EntrepriseRepository entrepriseRepository; // ⚠️ AJOUTÉ ICI
 
     private static final String[] MOIS_NOMS = {
             "", "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
@@ -73,14 +74,14 @@ public class DashboardService {
                 .margeTotale(BigDecimal.ZERO)
                 .nbClients(clientRepository.count())
                 .nbProduits(produitRepository.count())
-                .nbCommandes(0L)
+                .nbCommandes(commandeRepository.count())
                 .nbPaiements(paiementRepository.count())
                 .nbCommandesAchat(commandeAchatRepository.count())
-                .nbCommandesEnAttente(0L)
-                .nbCommandesValidees(0L)
-                .nbCommandesEnCours(0L)
-                .nbCommandesLivrees(0L)
-                .nbCommandesAnnulees(0L)
+                .nbCommandesEnAttente(commandeRepository.countByEntrepriseIdAndStatut(null, StatutCommande.EN_ATTENTE))
+                .nbCommandesValidees(commandeRepository.countByEntrepriseIdAndStatut(null, StatutCommande.VALIDEE))
+                .nbCommandesEnCours(commandeRepository.countByEntrepriseIdAndStatut(null, StatutCommande.EN_COURS))
+                .nbCommandesLivrees(commandeRepository.countByEntrepriseIdAndStatut(null, StatutCommande.LIVREE))
+                .nbCommandesAnnulees(commandeRepository.countByEntrepriseIdAndStatut(null, StatutCommande.ANNULEE))
                 .panierMoyen(BigDecimal.ZERO)
                 .build();
     }
@@ -102,7 +103,7 @@ public class DashboardService {
                 .nbClients(clientRepository.countByEntrepriseId(entrepriseId))
                 .nbProduits(produitRepository.countByEntrepriseId(entrepriseId))
                 .nbCommandes(nbCommandes)
-                .nbPaiements(0L) // À calculer si besoin
+                .nbPaiements(0L)
                 .nbCommandesAchat(commandeAchatRepository.countByEntrepriseId(entrepriseId))
                 .nbCommandesEnAttente(commandeRepository.countByEntrepriseIdAndStatutDate(entrepriseId, StatutCommande.EN_ATTENTE, start, end))
                 .nbCommandesValidees(commandeRepository.countByEntrepriseIdAndStatutDate(entrepriseId, StatutCommande.VALIDEE, start, end))
@@ -147,6 +148,8 @@ public class DashboardService {
 
     public List<TopProduitDTO> getTopProduits(int limit, LocalDate dateDebut, LocalDate dateFin) {
         User user = getCurrentUser();
+        if (user.hasRole(Role.ROLE_SUPER_ADMIN)) return List.of();
+
         Long entrepriseId = user.getEntreprise().getId();
         Long shopOwnerId = user.hasRole(Role.ROLE_ADMIN) ? null : resolveShopOwnerId(user);
         LocalDateTime start = dateDebut != null ? dateDebut.atStartOfDay() : null;
@@ -166,6 +169,8 @@ public class DashboardService {
 
     public List<TopClientDTO> getTopClients(int limit, LocalDate dateDebut, LocalDate dateFin) {
         User user = getCurrentUser();
+        if (user.hasRole(Role.ROLE_SUPER_ADMIN)) return List.of();
+
         Long entrepriseId = user.getEntreprise().getId();
         Long shopOwnerId = user.hasRole(Role.ROLE_ADMIN) ? null : resolveShopOwnerId(user);
         LocalDateTime start = dateDebut != null ? dateDebut.atStartOfDay() : null;
@@ -186,6 +191,8 @@ public class DashboardService {
 
     public List<ChiffreAffairesMoisDTO> getChiffreAffairesMensuel(LocalDate dateDebut, LocalDate dateFin) {
         User user = getCurrentUser();
+        if (user.hasRole(Role.ROLE_SUPER_ADMIN)) return List.of();
+
         Long entrepriseId = user.getEntreprise().getId();
         Long shopOwnerId = user.hasRole(Role.ROLE_ADMIN) ? null : resolveShopOwnerId(user);
         LocalDateTime start = dateDebut != null ? dateDebut.atStartOfDay() : null;
@@ -228,5 +235,29 @@ public class DashboardService {
         }
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User introuvable : " + email));
+    }
+
+    // ⚠️ MÉTHODE POUR LES STATS GLOBALES (SUPER ADMIN)
+    public DashboardStatsDTO getGlobalStats() {
+        long nbEntreprises = entrepriseRepository.count();
+        long nbClients = clientRepository.count();
+        long nbProduits = produitRepository.count();
+        long nbCommandes = commandeRepository.count();
+        long nbPaiements = paiementRepository.count();
+        long nbCommandesAchat = commandeAchatRepository.count();
+
+        BigDecimal caGlobalTTC = commandeRepository.sumGlobalTotalTTC();
+
+        return DashboardStatsDTO.builder()
+                .chiffreAffairesTTC(caGlobalTTC != null ? caGlobalTTC : BigDecimal.ZERO)
+                .chiffreAffairesHT(BigDecimal.ZERO)
+                .margeTotale(BigDecimal.ZERO)
+                .nbClients(nbClients)
+                .nbProduits(nbProduits)
+                .nbCommandes(nbCommandes)
+                .nbPaiements(nbPaiements)
+                .nbCommandesAchat(nbCommandesAchat)
+                .panierMoyen(BigDecimal.valueOf(nbEntreprises)) // Détournement pour afficher le nb d'entreprises
+                .build();
     }
 }
